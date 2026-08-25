@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import { errorHandler } from './lib/errors';
+import { mailboxRoutes } from './routes/mailbox';
 import type { Env } from './env';
 
 const app = new Hono<{ Bindings: Env }>();
+
+app.route('/api/mailbox', mailboxRoutes);
 
 app.get('/api/health', (c) => c.json({ ok: true }));
 
