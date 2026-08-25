@@ -10,6 +10,7 @@ import { useMailbox } from './composables/useMailbox';
 import { useInbox } from './composables/useInbox';
 import { useToast } from './composables/useToast';
 import { ApiClientError } from './api/client';
+import { copyText } from './lib/clipboard';
 import { mdiLightningBolt, mdiCheckBold } from '@mdi/js';
 
 const { session, remainingMs, expired, create, extend, remove, clear } = useMailbox();
@@ -46,7 +47,7 @@ async function ensureSession() {
 async function onCopy() {
   if (!session.value) return;
   try {
-    await navigator.clipboard.writeText(session.value.address);
+    await copyText(session.value.address);
     success('Address copied to clipboard');
   } catch {
     toastError('Could not copy address');
@@ -114,7 +115,6 @@ onUnmounted(() => inbox.stop());
       @extend="onExtend"
       @remove="onRemove"
       @open-custom="customOpen = true"
-      @refresh="ensureSession"
     />
 
     <div v-if="expired" class="expired card">

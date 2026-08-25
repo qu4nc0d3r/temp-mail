@@ -61,10 +61,3 @@ button:active { transform: scale(0.98); }
   border-radius: var(--radius);
   box-shadow: var(--shadow);
 }
-
-/* mobile: xếp dọc các nút hành động cho gọn */
-@media (max-width: 639px) {
-  .actions { flex-direction: column; align-items: stretch; }
-  .actions__btns { justify-content: space-between; }
-  .actions__btns .ghost-btn { flex: 1; justify-content: center; }
-}

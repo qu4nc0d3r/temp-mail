@@ -67,7 +67,13 @@ const unreadCount = computed(() => props.messages.length);
 .inbox__item:last-child { border-bottom: none; }
 .inbox__item:hover { background: var(--bg); }
 .inbox__meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-.inbox__sender { font-size: 0.95rem; }
+.inbox__sender {
+  font-size: 0.95rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .inbox__time { color: var(--text-muted); font-size: 0.8rem; white-space: nowrap; }
 .inbox__subject { margin: 2px 0; font-size: 0.9rem; }
 .inbox__preview { margin: 0; color: var(--text-muted); font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
