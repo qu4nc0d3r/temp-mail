@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import MdiIcon from './MdiIcon.vue';
 import AppModal from './AppModal.vue';
-import { mdiAccountOutline, mdiClockOutline, mdiPaperclipOutline, mdiLoading } from '@mdi/js';
+import { mdiAccountOutline, mdiClockOutline, mdiPaperclip, mdiLoading } from '@mdi/js';
 import { api } from '../api/client';
 import { buildSrcdoc } from '../lib/sandbox';
 import { formatRelativeTime } from '../lib/format';
@@ -61,7 +61,7 @@ watch(
       <div class="detail-meta">
         <span class="meta-item"><MdiIcon :path="mdiAccountOutline" :size="16" /> {{ detail.from_name || detail.from_addr }}</span>
         <span class="meta-item"><MdiIcon :path="mdiClockOutline" :size="16" /> {{ formatRelativeTime(detail.received_at) }}</span>
-        <span v-if="detail.attachments_count" class="meta-item"><MdiIcon :path="mdiPaperclipOutline" :size="16" /> {{ detail.attachments_count }} attachment(s) not stored</span>
+        <span v-if="detail.attachments_count" class="meta-item"><MdiIcon :path="mdiPaperclip" :size="16" /> {{ detail.attachments_count }} attachment(s) not stored</span>
       </div>
       <iframe
         v-if="srcdoc"
