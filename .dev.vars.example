@@ -1,2 +1,3 @@
 SALT_TOKEN=dev-salt-token-change-me
 SALT_IP=dev-salt-ip-change-me
+RECAPTCHA_SECRET_KEY=your-recaptcha-v3-secret-key

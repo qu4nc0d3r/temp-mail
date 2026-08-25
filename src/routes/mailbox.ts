@@ -7,6 +7,7 @@ import {
 } from '../db/queries';
 import { generateToken, hashToken, hashIp } from '../lib/token';
 import { validateLocalPart } from '../lib/validate';
+import { verifyRecaptcha } from '../lib/recaptcha';
 import type { Env } from '../env';
 
 const TTL_MS = 10 * 60 * 1000;
@@ -17,11 +18,15 @@ export const mailboxRoutes = new Hono<{ Bindings: Env }>();
 mailboxRoutes.post('/', async (c) => {
   const nowMs = Date.now();
   const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
+
+  const body = (await c.req.json().catch(() => ({}))) as { custom?: unknown; recaptchaToken?: unknown };
+  const recaptchaToken = typeof body.recaptchaToken === 'string' ? body.recaptchaToken : '';
+  const verified = await verifyRecaptcha(c.env, recaptchaToken, ip);
+  if (!verified) throw new ApiError(403, 'RECAPTCHA_FAILED', 'Could not verify you are human');
+
   const ipHash = await hashIp(ip, c.env.SALT_IP);
   const allowed = await checkAndRecordUsage(c.env.DB, ipHash, nowMs);
   if (!allowed) throw new ApiError(429, 'RATE_LIMITED', 'Too many mailboxes created this hour');
-
-  const body = (await c.req.json().catch(() => ({}))) as { custom?: unknown };
   let address: string;
 
   if (body.custom !== undefined) {

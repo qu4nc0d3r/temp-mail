@@ -1,5 +1,6 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { api } from '../api/client';
+import { getRecaptchaToken } from '../lib/recaptcha';
 
 export interface Session {
   address: string;
@@ -40,9 +41,10 @@ export function useMailbox() {
   }
 
   async function create(custom?: string) {
+    const recaptchaToken = await getRecaptchaToken();
     const res = await api.post<{ address: string; token: string; expiresAt: number }>(
       '/api/mailbox',
-      custom ? { custom } : {},
+      custom ? { custom, recaptchaToken } : { recaptchaToken },
     );
     persist({ address: res.address, token: res.token, expiresAt: res.expiresAt });
   }
