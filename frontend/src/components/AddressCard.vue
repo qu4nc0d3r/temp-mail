@@ -26,7 +26,7 @@ const urgency = computed(() => {
 <template>
   <section class="card address-card">
     <div class="address-card__top">
-      <p class="label">YOUR TEMPORARY ADDRESS</p>
+      <h2 class="label">YOUR TEMPORARY ADDRESS</h2>
       <span class="countdown" :class="`countdown--${urgency}`">
         <MdiIcon :path="mdiClockOutline" :size="16" />
         Expires in {{ formatCountdown(remainingMs) }}

@@ -1,0 +1,30 @@
+# Allow all crawlers, including AI / LLM crawlers, to index this site.
+User-agent: *
+Allow: /
+
+# AI and LLM crawlers — explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: CCBot
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+Sitemap: https://toolviet.net/sitemap.xml

@@ -107,30 +107,36 @@ onUnmounted(() => inbox.stop());
       <h1 class="brand__title">Temp Mail</h1>
     </header>
 
-    <AddressCard
-      v-if="session"
-      :session="session"
-      :remaining-ms="remainingMs"
-      @copy="onCopy"
-      @extend="onExtend"
-      @remove="onRemove"
-      @open-custom="customOpen = true"
-    />
+    <div class="layout">
+      <div class="layout__side">
+        <AddressCard
+          v-if="session"
+          :session="session"
+          :remaining-ms="remainingMs"
+          @copy="onCopy"
+          @extend="onExtend"
+          @remove="onRemove"
+          @open-custom="customOpen = true"
+        />
 
-    <div v-if="expired" class="expired card">
-      <p>This mailbox has expired.</p>
-      <button class="expired__cta" :disabled="creating" @click="ensureSession">
-        <MdiIcon :path="mdiCheckBold" :size="18" /> {{ creating ? 'Creating…' : 'Create a new address' }}
-      </button>
+        <div v-if="expired" class="expired card">
+          <p>This mailbox has expired.</p>
+          <button class="expired__cta" :disabled="creating" @click="ensureSession">
+            <MdiIcon :path="mdiCheckBold" :size="18" /> {{ creating ? 'Creating…' : 'Create a new address' }}
+          </button>
+        </div>
+      </div>
+
+      <div class="layout__main">
+        <InboxList
+          :messages="inbox.messages.value"
+          :loading="inbox.loading.value"
+          :expired="expired"
+          @open-message="onOpenMessage"
+          @refresh="ensureSession"
+        />
+      </div>
     </div>
-
-    <InboxList
-      :messages="inbox.messages.value"
-      :loading="inbox.loading.value"
-      :expired="expired"
-      @open-message="onOpenMessage"
-      @refresh="ensureSession"
-    />
 
     <MessageModal :open="!!selectedMessageId" :message-id="selectedMessageId" :session="session" @close="selectedMessageId = null" />
     <NewAddressModal :open="customOpen" :loading="creating" @close="customOpen = false" @submit="onSubmitCustom" />
@@ -157,4 +163,16 @@ onUnmounted(() => inbox.stop());
   background: var(--accent); color: #fff; padding: 0 16px; border-radius: 8px; font-weight: 600;
 }
 .expired__cta:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* 2-column layout on desktop: address card pinned left, inbox right */
+@media (min-width: 960px) {
+  .layout {
+    display: grid;
+    grid-template-columns: 380px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .layout__side { position: sticky; top: 16px; }
+  .layout__main :deep(.inbox) { margin-top: 0; }
+}
 </style>

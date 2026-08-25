@@ -40,6 +40,11 @@ html, body {
   padding: clamp(12px, 3vw, 24px);
 }
 
+/* desktop 2-column layout needs a wider container */
+@media (min-width: 960px) {
+  #app { max-width: 1120px; }
+}
+
 button {
   font-family: inherit;
   font-size: 1rem;
