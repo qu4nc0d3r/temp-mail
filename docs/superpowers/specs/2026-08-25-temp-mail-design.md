@@ -129,6 +129,7 @@ Lỗi thống nhất `{error:{code,message}}`.
 |---|---|---|---|---|
 | POST | `/api/mailbox` | `{custom?: string}` | `{address, token, expiresAt, serverTime}` | token trả một lần duy nhất; rate limit 20/h/IP |
 | GET | `/api/mailbox/:address/messages` | Bearer | `{messages[], expiresAt, serverTime}` | messages sắp newest-first |
+| GET | `/api/mailbox/:address/messages/:id` | Bearer | `{message}` — full detail `{id, fromName, fromAddr, subject, preview, htmlBody, textBody, attachmentsCount, receivedAt}` | dùng khi mở mail xem chi tiết |
 | POST | `/api/mailbox/:address/extend` | Bearer | `{expiresAt}` | +10 phút, trần 60 phút tính từ created_at |
 | DELETE | `/api/mailbox/:address` | Bearer | `{ok:true}` | xoá mailbox + messages ngay |
 | GET | `/api/health` | — | `{ok:true}` | |
