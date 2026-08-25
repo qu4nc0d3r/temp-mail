@@ -1,4 +1,4 @@
-import { ref } from 'vue';
+import { ref, type Ref } from 'vue';
 import { api } from '../api/client';
 import type { Session } from './useMailbox';
 
@@ -12,7 +12,7 @@ export interface MessageSummary {
 }
 
 interface Options {
-  session: Session | null;
+  session: Ref<Session | null>;
   onNewMail: (newMessages: MessageSummary[]) => void;
   pollMs?: number;
 }
@@ -25,12 +25,13 @@ export function useInbox({ session, onNewMail, pollMs = 5000 }: Options) {
   let timer: ReturnType<typeof setInterval> | undefined;
 
   async function refresh() {
-    if (!session) return;
+    const s = session.value;
+    if (!s) return;
     loading.value = true;
     try {
       const res = await api.get<{ messages: MessageSummary[] }>(
-        `/api/mailbox/${encodeURIComponent(session.address)}/messages`,
-        { token: session.token },
+        `/api/mailbox/${encodeURIComponent(s.address)}/messages`,
+        { token: s.token },
       );
       error.value = null;
       const prev = new Set(messages.value.map((m) => m.id));
