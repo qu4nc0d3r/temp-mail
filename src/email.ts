@@ -7,8 +7,13 @@ import type { Env } from './env';
 
 export async function email(message: EmailMessage, env: Env): Promise<void> {
   const nowMs = Date.now();
-  const rawTo = message.to;
-  const to = typeof rawTo === 'string' ? rawTo : rawTo[0].address;
+  const rawTo: unknown = message.to;
+  const to =
+    typeof rawTo === 'string'
+      ? rawTo
+      : Array.isArray(rawTo)
+        ? (rawTo[0] as { address?: string } | undefined)?.address ?? ''
+        : '';
   const address = to.toLowerCase();
 
   const mailbox = await getActiveMailbox(env.DB, address, nowMs);

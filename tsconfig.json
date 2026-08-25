@@ -12,5 +12,5 @@
     "isolatedModules": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts", "tests/**/*.ts", "frontend/src/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }
