@@ -8,7 +8,14 @@ export default defineConfig(async () => {
       cloudflareTest({
         wrangler: { configPath: './wrangler.toml' },
         miniflare: {
-          bindings: { TEST_MIGRATIONS: migrations },
+          bindings: {
+            TEST_MIGRATIONS: migrations,
+            // Force reCAPTCHA off in tests regardless of .dev.vars so the
+            // existing mailbox integration tests keep passing without tokens.
+            RECAPTCHA_SECRET_KEY: '',
+            RECAPTCHA_SITE_KEY: 'test-site-key',
+            RECAPTCHA_THRESHOLD: '0.5',
+          },
         },
       }),
     ],

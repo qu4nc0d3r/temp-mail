@@ -9,6 +9,7 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.route('/api/mailbox', mailboxRoutes);
 app.get('/api/health', (c) => c.json({ ok: true }));
+app.get('/api/config', (c) => c.json({ recaptchaSiteKey: c.env.RECAPTCHA_SITE_KEY ?? '' }));
 
 app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 

@@ -4,6 +4,9 @@ export interface Env {
   DOMAIN: string;
   SALT_TOKEN: string;
   SALT_IP: string;
+  RECAPTCHA_SITE_KEY?: string;
+  RECAPTCHA_SECRET_KEY?: string;
+  RECAPTCHA_THRESHOLD?: string;
 }
 
 export interface MailboxRecord {
