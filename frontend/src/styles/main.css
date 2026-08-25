@@ -1,0 +1,63 @@
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --border: #e2e5ea;
+  --text: #1c2230;
+  --text-muted: #6b7380;
+  --accent: #2f6bff;
+  --danger: #e5484d;
+  --success: #30a46c;
+  --warning: #f5a524;
+  --radius: 12px;
+  --shadow: 0 1px 3px rgba(20, 30, 50, 0.08), 0 8px 24px rgba(20, 30, 50, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1218;
+    --surface: #171b23;
+    --border: #262c38;
+    --text: #e6e9ef;
+    --text-muted: #8a92a0;
+    --shadow: 0 1px 3px rgba(0, 0, 0, 0.4), 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Poppins', system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+#app {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: clamp(12px, 3vw, 24px);
+}
+
+button {
+  font-family: inherit;
+  font-size: 1rem;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  min-height: 44px; /* touch target */
+  min-width: 44px;
+  border-radius: 8px;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+button:active { transform: scale(0.98); }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
