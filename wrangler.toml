@@ -14,10 +14,10 @@ crons = ["* * * * *"]
 [[d1_databases]]
 binding = "DB"
 database_name = "temp-mail"
-database_id = "11111111-1111-1111-1111-111111111111"
+database_id = "16fe181e-764c-45cd-b310-80db1184a826"
 migrations_dir = "migrations"
 
 [vars]
-DOMAIN = "tempmail.test"
-SALT_TOKEN = "dev-salt-token-change-me"
-SALT_IP = "dev-salt-ip-change-me"
+DOMAIN = "toolviet.net"
+SALT_TOKEN = "2128a9f00a7134953373847975819670312638e611a9fb7040cfb476620f7d34"
+SALT_IP = "9b5c108947696197dac24a6dfad3ba133f45680af4069abe6d0950524b221890"

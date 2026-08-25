@@ -8,15 +8,18 @@ npx wrangler d1 create temp-mail
 
 Sao chép `database_id` từ output vào `wrangler.toml` (field `[[d1_databases]].database_id`).
 
-## 2. Cấu hình domain + secrets
+## 2. Cấu hình domain + salts
 
-- Sửa `DOMAIN` trong `[vars]` wrangler.toml thành tên miền thật (vd `tempmail.example.com`).
-- Đặt salt production (secret ghi đè var cùng tên):
+- `DOMAIN` trong `[vars]` wrangler.toml là **đuôi địa chỉ mail** (nơi Email Routing nhận),
+  vd `toolviet.net` → địa chỉ dạng `kx9m2p@toolviet.net`.
+  *(URL web mà người dùng truy cập là chuyện khác — cấu hình sau deploy qua Workers Custom Domain.)*
+- `SALT_TOKEN` / `SALT_IP` là **muối hash** (token hộp thư / IP rate-limit) — nên là chuỗi ngẫu nhiên dài,
+  sinh bằng `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`.
+- Đặt trong `[vars]` wrangler.toml là ổn cho repo riêng tư. Nếu repo sắp public, chuyển sang secret:
+  `npx wrangler secret put SALT_TOKEN` (secret ghi đè var cùng tên).
 
-```bash
-npx wrangler secret put SALT_TOKEN
-npx wrangler secret put SALT_IP
-```
+> ⚠️ **Quan trọng:** Không đổi `SALT_TOKEN` sau khi đã có người dùng tạo hộp thư —
+> token hash trong DB sẽ không khớp nữa, mọi inbox hiện tại không đọc được. Chốt trước khi go-live.
 
 ## 3. Deploy
 
