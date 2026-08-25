@@ -1,0 +1,23 @@
+name = "temp-mail"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+
+[assets]
+directory = "./dist"
+not_found_handling = "single-page-application"
+run_worker_first = true
+binding = "ASSETS"
+
+[triggers]
+crons = ["* * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "temp-mail"
+database_id = "11111111-1111-1111-1111-111111111111"
+migrations_dir = "migrations"
+
+[vars]
+DOMAIN = "tempmail.test"
+SALT_TOKEN = "dev-salt-token-change-me"
+SALT_IP = "dev-salt-ip-change-me"
