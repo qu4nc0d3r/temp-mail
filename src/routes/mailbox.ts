@@ -1,11 +1,16 @@
 import { Hono } from 'hono';
 import { ApiError } from '../lib/errors';
-import { createMailbox, getActiveMailbox, checkAndRecordUsage } from '../db/queries';
+import { authenticate } from '../lib/auth';
+import {
+  createMailbox, getActiveMailbox, checkAndRecordUsage, listMessages,
+  getMessage, extendMailbox, deleteMailbox,
+} from '../db/queries';
 import { generateToken, hashToken, hashIp } from '../lib/token';
 import { validateLocalPart } from '../lib/validate';
 import type { Env } from '../env';
 
 const TTL_MS = 10 * 60 * 1000;
+const MAX_TOTAL_MS = 60 * 60 * 1000;
 
 export const mailboxRoutes = new Hono<{ Bindings: Env }>();
 
@@ -36,4 +41,34 @@ mailboxRoutes.post('/', async (c) => {
   if (!created) throw new ApiError(409, 'TAKEN', 'Name already in use');
 
   return c.json({ address, token, expiresAt: nowMs + TTL_MS, serverTime: nowMs }, 201);
+});
+
+mailboxRoutes.get('/:address/messages', async (c) => {
+  const nowMs = Date.now();
+  const mailbox = await authenticate(c, c.req.param('address'), nowMs);
+  const messages = await listMessages(c.env.DB, mailbox.address, nowMs);
+  return c.json({ messages, expiresAt: mailbox.expires_at, serverTime: nowMs });
+});
+
+mailboxRoutes.get('/:address/messages/:id', async (c) => {
+  const nowMs = Date.now();
+  const mailbox = await authenticate(c, c.req.param('address'), nowMs);
+  const message = await getMessage(c.env.DB, c.req.param('id'), mailbox.address, nowMs);
+  if (!message) throw new ApiError(404, 'NOT_FOUND', 'Message not found');
+  return c.json({ message });
+});
+
+mailboxRoutes.post('/:address/extend', async (c) => {
+  const nowMs = Date.now();
+  const mailbox = await authenticate(c, c.req.param('address'), nowMs);
+  const newExpiry = Math.min(nowMs + TTL_MS, mailbox.created_at + MAX_TOTAL_MS);
+  await extendMailbox(c.env.DB, mailbox.address, newExpiry, nowMs);
+  return c.json({ expiresAt: newExpiry, serverTime: nowMs });
+});
+
+mailboxRoutes.delete('/:address', async (c) => {
+  const nowMs = Date.now();
+  const mailbox = await authenticate(c, c.req.param('address'), nowMs);
+  await deleteMailbox(c.env.DB, mailbox.address);
+  return c.json({ ok: true });
 });
