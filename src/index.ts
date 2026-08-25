@@ -14,5 +14,6 @@ app.all('*', (c) => c.env.ASSETS.fetch(c.req.raw));
 app.onError(errorHandler);
 
 export { email } from './email';
+export { scheduled } from './scheduled';
 
 export default app;
