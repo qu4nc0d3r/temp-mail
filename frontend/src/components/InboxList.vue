@@ -36,7 +36,11 @@ const unreadCount = computed(() => props.messages.filter((m) => !props.readIds.i
         :key="m.id"
         class="inbox__item"
         :class="{ 'inbox__item--unread': !props.readIds.includes(m.id) }"
+        tabindex="0"
+        role="button"
         @click="emit('open-message', m.id)"
+        @keydown.enter.prevent="emit('open-message', m.id)"
+        @keydown.space.prevent="emit('open-message', m.id)"
       >
         <div class="inbox__meta">
           <strong class="inbox__sender">{{ m.from_name || m.from_addr }}</strong>
@@ -46,6 +50,16 @@ const unreadCount = computed(() => props.messages.filter((m) => !props.readIds.i
         <p class="inbox__preview">{{ m.preview }}</p>
       </li>
     </ul>
+
+    <!-- đang load mail lần đầu → skeleton, đừng hiện "No mail yet" -->
+    <div v-else-if="loading" class="skeleton-list" aria-hidden="true">
+      <div v-for="i in 4" :key="i" class="skeleton-row">
+        <span class="skeleton skeleton--dot"></span>
+        <span class="skeleton skeleton--line skeleton--line-sm"></span>
+        <span class="skeleton skeleton--line"></span>
+        <span class="skeleton skeleton--line skeleton--line-lg"></span>
+      </div>
+    </div>
 
     <div v-else class="empty">
       <MdiIcon :path="mdiInboxOutline" :size="32" />
@@ -100,4 +114,28 @@ const unreadCount = computed(() => props.messages.filter((m) => !props.readIds.i
 .empty { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px 16px; color: var(--text-muted); text-align: center; }
 .empty p { margin: 0; }
 .empty__hint { font-size: 0.85rem; }
+
+/* focus keyboard cho inbox item */
+.inbox__item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+.skeleton-list { padding: 4px 0; }
+.skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.skeleton {
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.skeleton--dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.skeleton--line-sm { width: 30%; }
+.skeleton--line { flex: 1; }
+.skeleton--line-lg { width: 80%; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 </style>

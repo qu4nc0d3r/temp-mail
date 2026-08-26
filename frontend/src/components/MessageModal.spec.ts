@@ -31,4 +31,18 @@ describe('MessageModal', () => {
     expect(iframe?.getAttribute('sandbox')).toBe('');
     wrapper.unmount();
   });
+
+  it('shows a skeleton while the message detail is loading', async () => {
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise(() => {})); // fetch không bao giờ resolve
+    const wrapper = mount(MessageModal, {
+      props: {
+        open: true,
+        messageId: 'm1',
+        session: { address: 'in@x.com', token: 't', expiresAt: Date.now() + 60_000 },
+      },
+    });
+    await nextTick();
+    expect(document.querySelector('.skeleton-detail')).not.toBeNull();
+    wrapper.unmount();
+  });
 });

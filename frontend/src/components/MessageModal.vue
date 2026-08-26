@@ -2,7 +2,7 @@
 import { ref, watch } from 'vue';
 import MdiIcon from './MdiIcon.vue';
 import AppModal from './AppModal.vue';
-import { mdiAccountOutline, mdiClockOutline, mdiPaperclip, mdiLoading } from '@mdi/js';
+import { mdiAccountOutline, mdiClockOutline, mdiPaperclip } from '@mdi/js';
 import { api } from '../api/client';
 import { buildSrcdoc } from '../lib/sandbox';
 import { formatRelativeTime } from '../lib/format';
@@ -55,7 +55,16 @@ watch(
 
 <template>
   <AppModal :open="props.open" :title="detail?.subject || 'Message'" size="lg" @close="emit('close')">
-    <div v-if="loading" class="state"><MdiIcon :path="mdiLoading" :size="24" /> Loading…</div>
+    <div v-if="loading" class="skeleton-detail" aria-hidden="true">
+      <span class="skeleton skeleton--title"></span>
+      <div class="skeleton-meta">
+        <span class="skeleton skeleton--meta"></span>
+        <span class="skeleton skeleton--meta"></span>
+      </div>
+      <span class="skeleton skeleton--body"></span>
+      <span class="skeleton skeleton--body"></span>
+      <span class="skeleton skeleton--body skeleton--body-short"></span>
+    </div>
     <div v-else-if="error" class="state state--error">{{ error }}</div>
     <template v-else-if="detail">
       <div class="detail-meta">
@@ -78,6 +87,21 @@ watch(
 <style scoped>
 .state { display: flex; align-items: center; gap: 8px; color: var(--text-muted); padding: 24px 0; }
 .state--error { color: var(--danger); }
+.skeleton-detail { display: flex; flex-direction: column; gap: 12px; }
+.skeleton-meta { display: flex; gap: 14px; }
+.skeleton {
+  display: block;
+  height: 12px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite linear;
+}
+.skeleton--title { height: 18px; width: 55%; }
+.skeleton--meta { width: 90px; }
+.skeleton--body { height: 14px; }
+.skeleton--body-short { width: 70%; }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .detail-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; color: var(--text-muted); font-size: 0.85rem; }
 .meta-item { display: inline-flex; align-items: center; gap: 6px; }
 .mail-frame {
