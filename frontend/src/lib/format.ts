@@ -15,3 +15,10 @@ export function formatRelativeTime(ms: number, nowMs = Date.now()): string {
   const hr = Math.floor(min / 60);
   return `${hr}h ago`;
 }
+
+export function formatDateTimeVN(ms: number): string {
+  return new Intl.DateTimeFormat('vi-VN', {
+    year: 'numeric', month: 'numeric', day: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  }).format(ms);
+}
