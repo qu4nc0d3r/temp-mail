@@ -49,10 +49,18 @@ function onKeydown(e: KeyboardEvent) {
   if (focusables.length === 0) return;
   const first = focusables[0];
   const last = focusables[focusables.length - 1];
-  if (e.shiftKey && document.activeElement === first) {
+  const active = document.activeElement as HTMLElement | null;
+  // focus rơi ra ngoài card (vd: click vùng trống trong modal) → kéo ngược vào modal,
+  // tránh Tab đi tiếp ra ngoài
+  if (!active || !card.contains(active)) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+    return;
+  }
+  if (e.shiftKey && active === first) {
     e.preventDefault();
     last.focus();
-  } else if (!e.shiftKey && document.activeElement === last) {
+  } else if (!e.shiftKey && active === last) {
     e.preventDefault();
     first.focus();
   }
@@ -66,7 +74,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="props.open" class="modal-backdrop" @click.self="emit('close')">
-        <div ref="cardRef" class="modal-card" :class="`modal-card--${props.size}`" role="dialog" aria-modal="true" :aria-label="title">
+        <div ref="cardRef" class="modal-card" :class="`modal-card--${props.size}`" role="dialog" aria-modal="true" :aria-label="title || undefined">
           <header class="modal-header">
             <h2 class="modal-title">{{ props.title }}</h2>
             <button class="modal-close" aria-label="Close" @click="emit('close')">

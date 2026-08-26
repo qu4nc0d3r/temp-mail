@@ -79,4 +79,43 @@ describe('AppModal focus management', () => {
     expect(document.activeElement).toBe(trigger.element);
     wrapper.unmount();
   });
+
+  it('re-traps Tab into the modal when focus is outside the card', async () => {
+    const wrapper = mount(Host, { attachTo: document.body });
+    await wrapper.find('#trigger').trigger('click');
+    await nextTick();
+    // mô phỏng focus rơi ra ngoài modal (vd: user click vùng trống không focusable)
+    document.body.focus();
+    expect(document.querySelector('.modal-card')!.contains(document.activeElement)).toBe(false);
+
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
+    expect(document.querySelector('.modal-card')!.contains(document.activeElement)).toBe(true);
+    wrapper.unmount();
+  });
+
+  it('restores focus when closed via the X button', async () => {
+    const wrapper = mount(Host, { attachTo: document.body });
+    const trigger = wrapper.find('#trigger');
+    (trigger.element as HTMLElement).focus();
+    await trigger.trigger('click');
+    await nextTick();
+
+    document.querySelector<HTMLElement>('.modal-close')!.click();
+    await nextTick();
+    expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
+  });
+
+  it('restores focus when closed via clicking the backdrop', async () => {
+    const wrapper = mount(Host, { attachTo: document.body });
+    const trigger = wrapper.find('#trigger');
+    (trigger.element as HTMLElement).focus();
+    await trigger.trigger('click');
+    await nextTick();
+
+    document.querySelector<HTMLElement>('.modal-backdrop')!.click();
+    await nextTick();
+    expect(document.activeElement).toBe(trigger.element);
+    wrapper.unmount();
+  });
 });
