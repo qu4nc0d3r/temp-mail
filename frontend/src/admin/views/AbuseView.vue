@@ -11,11 +11,14 @@ import { formatDateTimeVN } from '../../lib/format';
 
 const props = defineProps<{ refreshTick: number }>();
 
+const offset = ref(0);
+const eventType = ref<string | null>(null);
+
 const senders = useAdminPolling(() => adminApi.top('senders', 10));
 const ips = useAdminPolling(() => adminApi.top('ips', 10));
 const overview = useAdminPolling(() => adminApi.overview());
 const series = useAdminPolling(() => adminApi.stats('24h'));
-const events = useAdminPolling(() => adminApi.events(null, 20, 0));
+const events = useAdminPolling(() => adminApi.events(eventType.value, 20, offset.value));
 
 watch(() => props.refreshTick, () => {
   void senders.refresh();
@@ -24,6 +27,11 @@ watch(() => props.refreshTick, () => {
   void series.refresh();
   void events.refresh();
 });
+
+function onEventTypeChange(): void {
+  offset.value = 0;
+  void events.refresh();
+}
 
 const columns: Column[] = [
   { key: 'type', label: 'Loại' },
@@ -53,14 +61,21 @@ const columns: Column[] = [
     </article>
 
     <article class="card admin-panel">
-      <h3 class="admin-panel__title">Sự kiện gần đây</h3>
+      <div class="admin-panel__head">
+        <h3 class="admin-panel__title">Sự kiện gần đây</h3>
+        <select v-model="eventType" class="events-filter" aria-label="Lọc theo loại sự kiện" @change="onEventTypeChange">
+          <option :value="null">Tất cả</option>
+          <option value="rate_limited">rate_limited</option>
+          <option value="recaptcha_failed">recaptcha_failed</option>
+        </select>
+      </div>
       <DataTable
         :columns="columns"
         :rows="(events.data.value?.events ?? []) as Record<string, unknown>[]"
         :total="events.data.value?.total ?? 0"
         :limit="20"
-        :offset="0"
-        @update:offset="() => void events.refresh()"
+        :offset="offset"
+        @update:offset="(v) => { offset = v; void events.refresh() }"
         @update:limit="() => void events.refresh()"
       />
     </article>
@@ -73,5 +88,15 @@ const columns: Column[] = [
 @media (min-width: 1200px) { .admin-grid--charts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .admin-panel { padding: 18px; }
 .admin-panel__title { margin: 0 0 12px; font-size: 1rem; }
+.admin-panel__head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.admin-panel__head .admin-panel__title { margin: 0; }
+.events-filter {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 0.85rem;
+}
 .admin-grid { margin-bottom: 16px; }
 </style>

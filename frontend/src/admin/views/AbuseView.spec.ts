@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, type MockInstance } from 'vitest';
 import { mount } from '@vue/test-utils';
 
 vi.mock('vue-chartjs', () => ({
@@ -20,10 +20,12 @@ const events = {
   total: 1, limit: 20, offset: 0,
 };
 
+let fetchMock: MockInstance;
+
 describe('AbuseView', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
-    const fetchMock = vi.spyOn(globalThis, 'fetch');
+    fetchMock = vi.spyOn(globalThis, 'fetch');
     fetchMock.mockImplementation(async (url: string) => {
       if (String(url).includes('/top')) return new Response(JSON.stringify({ by: 'senders', items: [{ label: 'spam@x.com', count: 5 }] }), { status: 200 });
       if (String(url).includes('/events')) return new Response(JSON.stringify(events), { status: 200 });
@@ -37,5 +39,15 @@ describe('AbuseView', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(wrapper.text()).toContain('spam@x.com');
     expect(wrapper.text()).toContain('rate_limited');
+  });
+
+  it('filters events by type and refetches with the type param', async () => {
+    const wrapper = mount(AbuseView, { props: { refreshTick: 0 } });
+    await new Promise((r) => setTimeout(r, 20));
+    const select = wrapper.find('select');
+    expect(select.exists()).toBe(true);
+    await select.setValue('rate_limited');
+    await new Promise((r) => setTimeout(r, 20));
+    expect(fetchMock).toHaveBeenCalledWith('/api/admin/events?type=rate_limited&limit=20&offset=0', expect.anything());
   });
 });

@@ -2,11 +2,16 @@
 import { watch } from 'vue';
 import { useAdminPolling } from '../useAdminPolling';
 import { adminApi } from '../../api/admin';
+import { formatDateTimeVN } from '../../lib/format';
 
 const props = defineProps<{ refreshTick: number }>();
 const config = useAdminPolling(() => adminApi.config());
+const overview = useAdminPolling(() => adminApi.overview());
 
-watch(() => props.refreshTick, () => void config.refresh());
+watch(() => props.refreshTick, () => {
+  void config.refresh();
+  void overview.refresh();
+});
 </script>
 
 <template>
@@ -22,6 +27,14 @@ watch(() => props.refreshTick, () => void config.refresh());
           <dd class="config-list__warn" :class="{ 'config-list__on': config.data.value?.devBypassEnabled }">
             {{ config.data.value?.devBypassEnabled ? 'ĐANG BẬT — cảnh báo' : 'Tắt' }}
           </dd>
+        </div>
+        <div>
+          <dt>Lần chạy cron cuối</dt>
+          <dd>{{ overview.data.value?.lastCronRunAt ? formatDateTimeVN(overview.data.value.lastCronRunAt) : '—' }}</dd>
+        </div>
+        <div v-if="overview.data.value?.lastCronCleanup">
+          <dt>Dọn dẹp cron cuối</dt>
+          <dd>{{ overview.data.value?.lastCronCleanup?.deletedMailboxes }} mailbox / {{ overview.data.value?.lastCronCleanup?.deletedMessages }} messages</dd>
         </div>
       </dl>
     </article>
