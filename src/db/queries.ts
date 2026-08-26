@@ -1,4 +1,4 @@
-import type { AdminEventRow, AdminEventType, AdminOverview, MessageDetail, MessageSummary, MailboxRecord, NewMessage, StatsPoint } from '../env';
+import type { AdminEventRow, AdminEventType, AdminMailboxRow, AdminMessageRow, AdminOverview, MessageDetail, MessageSummary, MailboxRecord, NewMessage, StatsPoint } from '../env';
 
 const DEFAULT_LIST_LIMIT = 50;
 
@@ -213,4 +213,51 @@ export async function getStatsSeries(
     });
   }
   return points;
+}
+
+export async function getTopSenders(db: D1Database, nowMs: number, limit: number): Promise<{ label: string; count: number }[]> {
+  const res = await db
+    .prepare('SELECT from_addr, COUNT(*) AS count FROM messages WHERE received_at >= ? GROUP BY from_addr ORDER BY count DESC, from_addr ASC LIMIT ?')
+    .bind(nowMs - DAY_MS, limit)
+    .all<{ from_addr: string; count: number }>();
+  return res.results.map((r) => ({ label: r.from_addr, count: r.count }));
+}
+
+export async function getTopIpHashes(db: D1Database, nowMs: number, limit: number): Promise<{ label: string; count: number }[]> {
+  const res = await db
+    .prepare(`SELECT ip_hash, COUNT(*) AS count FROM admin_events WHERE type = 'mailbox_created' AND created_at >= ? GROUP BY ip_hash ORDER BY count DESC, ip_hash ASC LIMIT ?`)
+    .bind(nowMs - DAY_MS, limit)
+    .all<{ ip_hash: string | null; count: number }>();
+  return res.results.map((r) => ({ label: r.ip_hash ?? '', count: r.count }));
+}
+
+export async function listMailboxes(db: D1Database, limit: number, offset: number): Promise<{ items: AdminMailboxRow[]; total: number }> {
+  const [res, total] = await Promise.all([
+    db.prepare('SELECT address, created_at, expires_at FROM mailboxes ORDER BY created_at DESC, address ASC LIMIT ? OFFSET ?').bind(limit, offset).all<AdminMailboxRow>(),
+    db.prepare('SELECT COUNT(*) AS c FROM mailboxes').first<{ c: number }>(),
+  ]);
+  return { items: res.results, total: total?.c ?? 0 };
+}
+
+export async function listRecentMessages(db: D1Database, limit: number, offset: number): Promise<{ items: AdminMessageRow[]; total: number }> {
+  const [res, total] = await Promise.all([
+    db.prepare('SELECT id, mailbox, from_name, from_addr, subject, preview, received_at FROM messages ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?').bind(limit, offset).all<AdminMessageRow>(),
+    db.prepare('SELECT COUNT(*) AS c FROM messages').first<{ c: number }>(),
+  ]);
+  return { items: res.results, total: total?.c ?? 0 };
+}
+
+export async function listEvents(
+  db: D1Database,
+  type: AdminEventType | null,
+  limit: number,
+  offset: number,
+): Promise<{ items: AdminEventRow[]; total: number }> {
+  const where = type ? ' WHERE type = ?' : '';
+  const params: unknown[] = type ? [type] : [];
+  const [res, total] = await Promise.all([
+    db.prepare(`SELECT id, type, ip_hash, address, detail, created_at FROM admin_events${where} ORDER BY created_at DESC, id DESC LIMIT ? OFFSET ?`).bind(...params, limit, offset).all<AdminEventRow>(),
+    db.prepare(`SELECT COUNT(*) AS c FROM admin_events${where}`).bind(...params).first<{ c: number }>(),
+  ]);
+  return { items: res.results, total: total?.c ?? 0 };
 }

@@ -23,6 +23,22 @@ export interface AdminEventRow {
   created_at: number;
 }
 
+export interface AdminMailboxRow {
+  address: string;
+  created_at: number;
+  expires_at: number;
+}
+
+export interface AdminMessageRow {
+  id: string;
+  mailbox: string;
+  from_name: string | null;
+  from_addr: string;
+  subject: string | null;
+  preview: string;
+  received_at: number;
+}
+
 export interface AdminOverview {
   activeMailboxes: number;
   messages24h: number;
