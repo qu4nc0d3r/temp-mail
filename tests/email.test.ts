@@ -3,7 +3,6 @@ import { env } from 'cloudflare:test';
 import { setupDb } from './helpers/db';
 import { email } from '../src/email';
 import { createMailbox, listMessages } from '../src/db/queries';
-import type { EmailMessage } from 'cloudflare:email';
 
 const NOW = Date.now();
 
@@ -22,12 +21,12 @@ function mimeStream(mailbox: string, overrides?: Partial<{ from: string; subject
   return new Blob([raw]).stream();
 }
 
-function fakeMessage(mailbox: string, overrides?: { from?: string; subject?: string; text?: string }): EmailMessage {
+function fakeMessage(mailbox: string, overrides?: { from?: string; subject?: string; text?: string }): ForwardableEmailMessage {
   return {
     to: mailbox,
     from: 'sender@example.com',
     raw: mimeStream(mailbox, overrides),
-  } as unknown as EmailMessage;
+  } as unknown as ForwardableEmailMessage;
 }
 
 beforeEach(async () => {
@@ -77,7 +76,7 @@ describe('email handler', () => {
       'plain text',
       '--abc--',
     ].join('\r\n');
-    const msg = { to: addr, from: 'bob@example.com', raw: new Blob([raw]).stream() } as unknown as EmailMessage;
+    const msg = { to: addr, from: 'bob@example.com', raw: new Blob([raw]).stream() } as unknown as ForwardableEmailMessage;
     await email(msg, env);
     const messages = await listMessages(env.DB, addr, NOW + 1000);
     expect(messages).toHaveLength(1);
