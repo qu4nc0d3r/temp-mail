@@ -95,4 +95,12 @@ describe('notifyNewMail', () => {
     setVisibility('hidden');
     await expect(notifyNewMail('Hi', 1)).resolves.toBeUndefined();
   });
+
+  it('swallows requestPermission rejections', async () => {
+    const stub = stubNotification('default');
+    stub.requestPermission.mockRejectedValue(new Error('denied by platform'));
+    setVisibility('hidden');
+    await expect(notifyNewMail('Hi', 1)).resolves.toBeUndefined();
+    expect(stub.instances).toHaveLength(0);
+  });
 });

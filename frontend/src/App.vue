@@ -32,13 +32,15 @@ const inbox = useInbox({
   },
 });
 
-// title + favicon phản ánh số mail chưa đọc
+// title + favicon phản ánh số mail chưa đọc; immediate để luôn có favicon nền
+// ngay khi mount (kể cả khi inbox trống/đã đọc hết)
 watch(
   () => inbox.unreadCount.value,
   (n) => {
     document.title = n > 0 ? `(${n}) Temp Mail` : 'Temp Mail';
     updateFavicon(n);
   },
+  { immediate: true },
 );
 
 // mailbox hết hạn/bị xoá → reset inbox để unreadCount về 0, title/favicon hết badge

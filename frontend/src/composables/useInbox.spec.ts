@@ -88,6 +88,36 @@ describe('useInbox', () => {
     expect(JSON.parse(globalThis.localStorage.getItem('tempmail.read') || '[]')).toEqual([]);
   });
 
+  it('polls even while the tab is hidden (so new mail can be detected for notifications)', () => {
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [] }), { status: 200 }),
+    );
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    inbox.start();
+    vi.advanceTimersByTime(5000);
+    expect(fetchMock).toHaveBeenCalled();
+    inbox.stop();
+    Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
+  });
+
+  it('discards in-flight refresh results when the session changes', async () => {
+    const s = ref({ address: 'a@x.com', token: 'tok', expiresAt: Date.now() + 600_000 });
+    let resolveFetch!: (r: Response) => void;
+    const pending = new Promise<Response>((r) => { resolveFetch = r; });
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(pending as Promise<Response>);
+    const inbox = useInbox({ session: s, onNewMail: () => {} });
+    const p = inbox.refresh();
+    // session đổi trong lúc đợi fetch (mailbox bị xoá/tạo mới)
+    s.value = { address: 'new@x.com', token: 't2', expiresAt: Date.now() + 600_000 };
+    resolveFetch(new Response(
+      JSON.stringify({ messages: [{ id: 'm1', from_name: 'A', from_addr: 'a', subject: 'S', preview: 'p', received_at: 1 }] }),
+      { status: 200 },
+    ));
+    await p;
+    expect(inbox.messages.value).toHaveLength(0);
+  });
+
   it('reset clears messages, read state and unreadCount', async () => {
     const messages = [
       { id: 'm1', from_name: 'A', from_addr: 'a@x', subject: 'S', preview: 'p', received_at: Date.now() },
