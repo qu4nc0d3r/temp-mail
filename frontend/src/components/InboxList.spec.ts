@@ -46,4 +46,43 @@ describe('InboxList', () => {
     await wrapper.find('.inbox__item').trigger('click');
     expect(wrapper.emitted('open-message')?.[0]).toEqual(['m1']);
   });
+
+  it('shows skeleton rows while loading with no messages', () => {
+    const wrapper = mount(InboxList, {
+      props: { messages: [], loading: true, expired: false, readIds: [] },
+    });
+    expect(wrapper.find('.skeleton-list').exists()).toBe(true);
+    expect(wrapper.text()).not.toContain('No mail yet');
+  });
+
+  it('shows the empty state when not loading', () => {
+    const wrapper = mount(InboxList, {
+      props: { messages: [], loading: false, expired: false, readIds: [] },
+    });
+    expect(wrapper.find('.skeleton-list').exists()).toBe(false);
+    expect(wrapper.text()).toContain('No mail yet');
+  });
+
+  it('renders each message item as keyboard-focusable', () => {
+    const wrapper = mount(InboxList, {
+      props: { messages: [makeMessage('m1')], loading: false, expired: false, readIds: [] },
+    });
+    expect(wrapper.find('.inbox__item').attributes('tabindex')).toBe('0');
+  });
+
+  it('opens a message with the Enter key', async () => {
+    const wrapper = mount(InboxList, {
+      props: { messages: [makeMessage('m1')], loading: false, expired: false, readIds: [] },
+    });
+    await wrapper.find('.inbox__item').trigger('keydown.enter');
+    expect(wrapper.emitted('open-message')?.[0]).toEqual(['m1']);
+  });
+
+  it('opens a message with the Space key', async () => {
+    const wrapper = mount(InboxList, {
+      props: { messages: [makeMessage('m1')], loading: false, expired: false, readIds: [] },
+    });
+    await wrapper.find('.inbox__item').trigger('keydown.space');
+    expect(wrapper.emitted('open-message')?.[0]).toEqual(['m1']);
+  });
 });

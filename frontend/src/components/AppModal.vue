@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted } from 'vue';
+import { ref, watch, nextTick, onMounted, onUnmounted } from 'vue';
 import MdiIcon from './MdiIcon.vue';
 import { mdiClose } from '@mdi/js';
 
@@ -8,9 +8,64 @@ const props = withDefaults(defineProps<{ open: boolean; title?: string; size?: '
 });
 const emit = defineEmits<{ close: [] }>();
 
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === 'Escape' && props.open) emit('close');
+const cardRef = ref<HTMLElement | null>(null);
+let previouslyFocused: HTMLElement | null = null;
+
+const FOCUSABLE = 'a[href], button:not([disabled]), input, select, textarea, [tabindex]:not([tabindex="-1"])';
+
+function focusFirstInModal() {
+  const card = cardRef.value;
+  if (!card) return;
+  const first = card.querySelector<HTMLElement>(FOCUSABLE);
+  (first ?? card).focus();
 }
+
+// mở → lưu phần tử đang focus và chuyển focus vào modal; đóng → restore
+watch(
+  () => props.open,
+  (open) => {
+    if (open) {
+      previouslyFocused = document.activeElement as HTMLElement | null;
+      void nextTick(focusFirstInModal);
+    } else if (previouslyFocused) {
+      previouslyFocused.focus();
+      previouslyFocused = null;
+    }
+  },
+  { immediate: true },
+);
+
+// giữ Tab trong modal (vòng lại từ đầu/cuối), Escape → đóng
+function onKeydown(e: KeyboardEvent) {
+  if (!props.open) return;
+  if (e.key === 'Escape') {
+    emit('close');
+    return;
+  }
+  if (e.key !== 'Tab') return;
+  const card = cardRef.value;
+  if (!card) return;
+  const focusables = Array.from(card.querySelectorAll<HTMLElement>(FOCUSABLE));
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement as HTMLElement | null;
+  // focus rơi ra ngoài card (vd: click vùng trống trong modal) → kéo ngược vào modal,
+  // tránh Tab đi tiếp ra ngoài
+  if (!active || !card.contains(active)) {
+    e.preventDefault();
+    (e.shiftKey ? last : first).focus();
+    return;
+  }
+  if (e.shiftKey && active === first) {
+    e.preventDefault();
+    last.focus();
+  } else if (!e.shiftKey && active === last) {
+    e.preventDefault();
+    first.focus();
+  }
+}
+
 onMounted(() => window.addEventListener('keydown', onKeydown));
 onUnmounted(() => window.removeEventListener('keydown', onKeydown));
 </script>
@@ -19,7 +74,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKeydown));
   <Teleport to="body">
     <Transition name="modal">
       <div v-if="props.open" class="modal-backdrop" @click.self="emit('close')">
-        <div class="modal-card" :class="`modal-card--${props.size}`" role="dialog" aria-modal="true">
+        <div ref="cardRef" class="modal-card" :class="`modal-card--${props.size}`" role="dialog" aria-modal="true" :aria-label="title || undefined">
           <header class="modal-header">
             <h2 class="modal-title">{{ props.title }}</h2>
             <button class="modal-close" aria-label="Close" @click="emit('close')">
