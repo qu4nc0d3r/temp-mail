@@ -11,7 +11,7 @@ describe('api client', () => {
     const res = await api.get<{ ok: boolean }>('/api/health', { token: 'abc' });
     expect(res).toEqual({ ok: true });
     const [, init] = fetchMock.mock.calls[0];
-    expect((init.headers as Record<string, string>).authorization).toBe('Bearer abc');
+    expect((init!.headers as Record<string, string>).authorization).toBe('Bearer abc');
   });
 
   it('throws ApiClientError with code on error json', async () => {

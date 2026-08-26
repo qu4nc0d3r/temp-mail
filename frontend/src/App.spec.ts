@@ -41,6 +41,40 @@ describe('App', () => {
     wrapper.unmount();
   });
 
+  it('deletes the mailbox through a confirm dialog', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      if (init?.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+
+    await wrapper.find('.ghost-btn--danger').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    // dialog teleport vào body — không dùng window.confirm nữa
+    const confirmBtn = document.querySelector<HTMLButtonElement>('.confirm-actions .danger');
+    expect(confirmBtn).not.toBeNull();
+    expect(document.body.textContent).toContain('Delete permanently');
+    confirmBtn!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const deleteCall = fetchMock.mock.calls.find((c) => c[1]?.method === 'DELETE');
+    expect(deleteCall).toBeDefined();
+    expect(String(deleteCall![0])).toContain('z%40x.com');
+    expect(globalThis.localStorage.getItem('tempmail.session')).toBeNull();
+    wrapper.unmount();
+  });
+
   it('shows expired state when stored session is expired', async () => {
     globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
       address: 'z@x.com', token: 't', expiresAt: Date.now() - 1,

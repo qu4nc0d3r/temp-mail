@@ -3,7 +3,10 @@ import { ref } from 'vue';
 import { useInbox } from './useInbox';
 
 describe('useInbox', () => {
-  beforeEach(() => vi.useFakeTimers());
+  beforeEach(() => {
+    vi.useFakeTimers();
+    globalThis.localStorage.clear();
+  });
   afterEach(() => {
     vi.useRealTimers();
     vi.restoreAllMocks();
@@ -46,5 +49,60 @@ describe('useInbox', () => {
     const inbox = useInbox({ session: nullSession, onNewMail: () => {} });
     await inbox.refresh();
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('tracks read state and unreadCount', async () => {
+    const messages = [
+      { id: 'm1', from_name: 'A', from_addr: 'a@x', subject: 'S', preview: 'p', received_at: Date.now() },
+      { id: 'm2', from_name: 'B', from_addr: 'b@x', subject: 'S', preview: 'p', received_at: Date.now() },
+    ];
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ messages }), { status: 200 }));
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    await inbox.refresh();
+    expect(inbox.unreadCount.value).toBe(2);
+
+    inbox.markRead('m1');
+    expect(inbox.isRead('m1')).toBe(true);
+    expect(inbox.isRead('m2')).toBe(false);
+    expect(inbox.unreadCount.value).toBe(1);
+
+    inbox.markRead('m2');
+    expect(inbox.unreadCount.value).toBe(0);
+  });
+
+  it('persists read ids to localStorage across instances', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ messages: [] }), { status: 200 }));
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    inbox.markRead('m42');
+    expect(inbox.isRead('m42')).toBe(true);
+
+    const reloaded = useInbox({ session, onNewMail: () => {} });
+    expect(reloaded.isRead('m42')).toBe(true);
+  });
+
+  it('clearRead forgets all stored read ids', () => {
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    inbox.markRead('m1');
+    inbox.clearRead();
+    expect(inbox.isRead('m1')).toBe(false);
+    expect(JSON.parse(globalThis.localStorage.getItem('tempmail.read') || '[]')).toEqual([]);
+  });
+
+  it('reset clears messages, read state and unreadCount', async () => {
+    const messages = [
+      { id: 'm1', from_name: 'A', from_addr: 'a@x', subject: 'S', preview: 'p', received_at: Date.now() },
+      { id: 'm2', from_name: 'B', from_addr: 'b@x', subject: 'S', preview: 'p', received_at: Date.now() },
+    ];
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ messages }), { status: 200 }));
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    await inbox.refresh();
+    inbox.markRead('m1');
+    expect(inbox.unreadCount.value).toBe(1);
+
+    inbox.reset();
+    expect(inbox.messages.value).toHaveLength(0);
+    expect(inbox.unreadCount.value).toBe(0);
+    expect(inbox.isRead('m1')).toBe(false);
+    expect(globalThis.localStorage.getItem('tempmail.read')).toBeNull();
   });
 });

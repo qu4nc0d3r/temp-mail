@@ -9,10 +9,11 @@ const props = defineProps<{
   messages: MessageSummary[];
   loading: boolean;
   expired: boolean;
+  readIds: string[];
 }>();
 const emit = defineEmits<{ 'open-message': [id: string]; refresh: [] }>();
 
-const unreadCount = computed(() => props.messages.length);
+const unreadCount = computed(() => props.messages.filter((m) => !props.readIds.includes(m.id)).length);
 </script>
 
 <template>
@@ -30,7 +31,13 @@ const unreadCount = computed(() => props.messages.length);
     </div>
 
     <ul v-else-if="props.messages.length" class="inbox__list">
-      <li v-for="m in props.messages" :key="m.id" class="inbox__item" @click="emit('open-message', m.id)">
+      <li
+        v-for="m in props.messages"
+        :key="m.id"
+        class="inbox__item"
+        :class="{ 'inbox__item--unread': !props.readIds.includes(m.id) }"
+        @click="emit('open-message', m.id)"
+      >
         <div class="inbox__meta">
           <strong class="inbox__sender">{{ m.from_name || m.from_addr }}</strong>
           <time class="inbox__time">{{ formatRelativeTime(m.received_at) }}</time>
@@ -59,13 +66,26 @@ const unreadCount = computed(() => props.messages.length);
 .icon-btn:disabled { opacity: 0.4; }
 .inbox__list { list-style: none; margin: 0; padding: 0; }
 .inbox__item {
-  padding: 14px 16px;
+  position: relative;
+  padding: 14px 16px 14px 24px;
   border-bottom: 1px solid var(--border);
   cursor: pointer;
   transition: background 0.12s;
 }
 .inbox__item:last-child { border-bottom: none; }
 .inbox__item:hover { background: var(--bg); }
+.inbox__item--unread::before {
+  content: '';
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+}
+.inbox__item--unread .inbox__subject { font-weight: 600; }
 .inbox__meta { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
 .inbox__sender {
   font-size: 0.95rem;

@@ -1,16 +1,19 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, watch, onMounted, onUnmounted } from 'vue';
 import MdiIcon from './components/MdiIcon.vue';
 import ToastContainer from './components/ToastContainer.vue';
 import AddressCard from './components/AddressCard.vue';
 import InboxList from './components/InboxList.vue';
 import MessageModal from './components/MessageModal.vue';
 import NewAddressModal from './components/NewAddressModal.vue';
+import ConfirmDialog from './components/ConfirmDialog.vue';
 import { useMailbox } from './composables/useMailbox';
 import { useInbox } from './composables/useInbox';
 import { useToast } from './composables/useToast';
 import { ApiClientError } from './api/client';
 import { copyText } from './lib/clipboard';
+import { notifyNewMail } from './lib/notify';
+import { updateFavicon } from './lib/favicon';
 import { mdiLightningBolt, mdiCheckBold } from '@mdi/js';
 
 const { session, remainingMs, expired, create, extend, remove, clear } = useMailbox();
@@ -18,14 +21,29 @@ const { success, error: toastError, warning } = useToast();
 const creating = ref(false);
 const customOpen = ref(false);
 const selectedMessageId = ref<string | null>(null);
+const confirmDelete = ref(false);
 
 const inbox = useInbox({
   session,
   onNewMail: (fresh) => {
     const subject = fresh[0]?.subject ?? 'New mail';
     success(`${subject} — ${fresh.length} new message${fresh.length > 1 ? 's' : ''}`);
-    document.title = `(${fresh.length}) ${document.title.replace(/^\(\d+\) /, '')}`;
+    void notifyNewMail(subject, fresh.length); // tab ẩn mới notify; hàm tự kiểm tra
   },
+});
+
+// title + favicon phản ánh số mail chưa đọc
+watch(
+  () => inbox.unreadCount.value,
+  (n) => {
+    document.title = n > 0 ? `(${n}) Temp Mail` : 'Temp Mail';
+    updateFavicon(n);
+  },
+);
+
+// mailbox hết hạn/bị xoá → reset inbox để unreadCount về 0, title/favicon hết badge
+watch(expired, (e) => {
+  if (e) inbox.reset();
 });
 
 async function ensureSession() {
@@ -33,6 +51,7 @@ async function ensureSession() {
     creating.value = true;
     try {
       await create();
+      inbox.clearRead(); // mailbox mới → bỏ trạng thái đã đọc cũ
       await inbox.refresh();
     } catch (e) {
       toastError(e instanceof Error ? e.message : 'Could not create mailbox');
@@ -63,8 +82,12 @@ async function onExtend() {
   }
 }
 
-async function onRemove() {
-  if (!window.confirm('Delete this mailbox permanently?')) return;
+function onRemove() {
+  confirmDelete.value = true;
+}
+
+async function onConfirmDelete() {
+  confirmDelete.value = false;
   try {
     await remove();
     warning('Mailbox deleted');
@@ -77,6 +100,7 @@ async function onSubmitCustom(name: string) {
   creating.value = true;
   try {
     await create(name);
+    inbox.clearRead(); // mailbox mới → bỏ trạng thái đã đọc cũ
     customOpen.value = false;
     success(`Created ${name}@${session.value?.address.split('@')[1]}`);
     await inbox.refresh();
@@ -89,6 +113,7 @@ async function onSubmitCustom(name: string) {
 }
 
 function onOpenMessage(id: string) {
+  inbox.markRead(id);
   selectedMessageId.value = id;
 }
 
@@ -132,6 +157,7 @@ onUnmounted(() => inbox.stop());
           :messages="inbox.messages.value"
           :loading="inbox.loading.value"
           :expired="expired"
+          :read-ids="inbox.readIds.value"
           @open-message="onOpenMessage"
           @refresh="ensureSession"
         />
@@ -140,6 +166,13 @@ onUnmounted(() => inbox.stop());
 
     <MessageModal :open="!!selectedMessageId" :message-id="selectedMessageId" :session="session" @close="selectedMessageId = null" />
     <NewAddressModal :open="customOpen" :loading="creating" @close="customOpen = false" @submit="onSubmitCustom" />
+    <ConfirmDialog
+      :open="confirmDelete"
+      title="Delete mailbox"
+      message="Delete this mailbox permanently? You will lose all received messages."
+      @confirm="onConfirmDelete"
+      @cancel="confirmDelete = false"
+    />
     <ToastContainer />
   </main>
 </template>
