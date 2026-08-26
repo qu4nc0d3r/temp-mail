@@ -12,12 +12,14 @@
     "test:frontend": "vitest run --config vitest.frontend.config.ts"
   },
   "dependencies": {
+    "chart.js": "^4.5.1",
     "hono": "^4.6.0",
-    "postal-mime": "^2.3.0"
+    "postal-mime": "^2.3.0",
+    "vue-chartjs": "^5.3.4"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20260820.0",
     "@cloudflare/vitest-pool-workers": "latest",
+    "@cloudflare/workers-types": "^5.20260820.0",
     "@mdi/js": "^7.4.0",
     "@vitejs/plugin-vue": "^5.2.0",
     "@vue/test-utils": "^2.4.6",
