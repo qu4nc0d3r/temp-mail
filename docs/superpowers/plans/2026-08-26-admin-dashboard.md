@@ -300,8 +300,10 @@ function decodeJson<T>(part: string): T | null {
 }
 
 async function getJwks(opts: AccessJwtOptions): Promise<JwksKey[]> {
+  // Chỉ cache khi dùng fetch thật (không inject fetchImpl) — test inject fetchImpl
+  // mỗi lần nên luôn fetch mới, tránh cache cũ nhiễm giữa các test.
   const cache = jwksCache;
-  if (cache && cache.teamDomain === opts.teamDomain && Date.now() - cache.fetchedAtMs < JWKS_TTL_MS) {
+  if (!opts.fetchImpl && cache && cache.teamDomain === opts.teamDomain && Date.now() - cache.fetchedAtMs < JWKS_TTL_MS) {
     return cache.keys;
   }
   const fetchImpl = opts.fetchImpl ?? fetch;
@@ -309,7 +311,7 @@ async function getJwks(opts: AccessJwtOptions): Promise<JwksKey[]> {
   if (!res.ok) throw new Error('JWKS fetch failed');
   const data = (await res.json()) as { keys?: JwksKey[] };
   const keys = data.keys ?? [];
-  jwksCache = { teamDomain: opts.teamDomain, keys, fetchedAtMs: Date.now() };
+  if (!opts.fetchImpl) jwksCache = { teamDomain: opts.teamDomain, keys, fetchedAtMs: Date.now() };
   return keys;
 }
 
@@ -814,7 +816,7 @@ export async function getAdminOverview(db: D1Database, nowMs: number): Promise<A
   return {
     activeMailboxes: cnt(active),
     messages24h: messages,
-    mailPerMinute: Math.round((messages / 1440) * 100) / 100,
+    mailPerMinute: Math.round((messages / 1440) * 10000) / 10000,
     mailboxesCreated24h: cnt(created24h),
     rateLimited24h: cnt(rl24),
     rateLimited7d: cnt(rl7),
@@ -849,9 +851,12 @@ export async function getStatsSeries(
     bucketCount(db, `SELECT ((created_at / ?) * ?) AS t, COUNT(*) AS c FROM admin_events WHERE type = 'rate_limited' AND created_at >= ? GROUP BY t`, startMs, bucketMs),
     bucketCount(db, `SELECT ((created_at / ?) * ?) AS t, COUNT(*) AS c FROM admin_events WHERE type = 'recaptcha_failed' AND created_at >= ? GROUP BY t`, startMs, bucketMs),
   ]);
+  // Neo bucket tại biên `floor(nowMs/bucketMs)*bucketMs` (khớp với `((ts / ?) * ?)` trong SQL)
+  // rồi lùi dần về quá khứ — nếu neo tại startMs sẽ lệch pha, mọi bucket SQL không khớp → toàn 0.
+  const endBucket = Math.floor(nowMs / bucketMs) * bucketMs;
   const points: StatsPoint[] = [];
-  for (let t = startMs; t <= nowMs; t += bucketMs) {
-    points.push({
+  for (let t = endBucket; t > startMs; t -= bucketMs) {
+    points.unshift({
       t,
       messages: messages.get(t) ?? 0,
       mailboxes: mailboxes.get(t) ?? 0,
@@ -1615,7 +1620,7 @@ describe('OverviewView', () => {
     await new Promise((r) => setTimeout(r, 20));
     expect(wrapper.text()).toContain('12');
     expect(wrapper.text()).toContain('Mailbox đang hoạt động');
-    expect(wrapper.text()).toContain('Cron cuối');
+    expect(wrapper.text()).toContain('cron cuối');
   });
 });
 ```
@@ -1801,10 +1806,10 @@ watch(() => props.refreshTick, () => {
     <div v-if="overview.error.value" class="admin-error">Không tải được dữ liệu: {{ overview.error.value }}</div>
 
     <div class="admin-grid admin-grid--stats">
-      <StatCard label="Mailbox đang hoạt động" :value="overview.data.value?.activeMailboxes ?? '…'" icon="M14,13H20V11H14V13Z" />
-      <StatCard label="Messages (24h)" :value="overview.data.value?.messages24h ?? '…'" :hint="`${overview.data.value?.mailPerMinute ?? 0} mail/phút`" icon="M20,8L12,13L4,8V6L12,11L20,6V8M20,4H4C2.89,4 2,4.89 2,6V18A2,2 0 0,0 4,20H20A2,2 0 0,0 22,18V6C22,4.89 21.1,4 20,4Z" />
-      <StatCard label="Mailbox tạo mới (24h)" :value="overview.data.value?.mailboxesCreated24h ?? '…'" icon="M12,20C7.59,20 4,16.41 4,12C4,7.59 7.59,4 12,4C16.41,4 20,7.59 20,12C20,16.41 16.41,20 12,20M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M13,7H11V13H17V11H13V7Z" />
-      <StatCard label="Bị chặn rate-limit (24h)" :value="overview.data.value?.rateLimited24h ?? '…'" icon="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" />
+      <StatCard label="Mailbox đang hoạt động" :value="overview.data.value?.activeMailboxes ?? '…'" :icon="mdiInbox" />
+      <StatCard label="Messages (24h)" :value="overview.data.value?.messages24h ?? '…'" :hint="`${overview.data.value?.mailPerMinute ?? 0} mail/phút`" :icon="mdiEmailFast" />
+      <StatCard label="Mailbox tạo mới (24h)" :value="overview.data.value?.mailboxesCreated24h ?? '…'" :icon="mdiEmailPlus" />
+      <StatCard label="Bị chặn rate-limit (24h)" :value="overview.data.value?.rateLimited24h ?? '…'" :icon="mdiShieldOff" />
     </div>
 
     <div class="admin-grid admin-grid--wide">
@@ -1837,8 +1842,6 @@ watch(() => props.refreshTick, () => {
   margin-bottom: 16px;
 }
 </style>
-```
-> Icon path ở trên dùng path MDI có sẵn: `mdiInbox`, `mdiEmailFast`, `mdiEmailPlus`, `mdiShieldOff`. Thay thế chuỗi path tương ứng bằng import từ `@mdi/js` cho chính xác (vd `import { mdiInbox } from '@mdi/js'`) — tránh hardcode path sai.
 
 - [ ] **Step 4: Chạy lại — PASS**
 
@@ -2006,8 +2009,8 @@ const columns: Column[] = [
         :total="page.data.value?.total ?? 0"
         :limit="limit"
         :offset="offset"
-        @update:offset="(v: number) => (offset = v)"
-        @update:limit="(v: number) => (limit = v)"
+        @update:offset="(v) => (offset = v)"
+        @update:limit="(v) => (limit = v)"
       />
     </article>
   </section>
@@ -2055,8 +2058,8 @@ const columns: Column[] = [
         :total="page.data.value?.total ?? 0"
         :limit="limit"
         :offset="offset"
-        @update:offset="(v: number) => (offset = v)"
-        @update:limit="(v: number) => (limit = v)"
+        @update:offset="(v) => (offset = v)"
+        @update:limit="(v) => (limit = v)"
       />
     </article>
   </section>
@@ -2230,8 +2233,8 @@ const columns: Column[] = [
     <h2 class="admin-view__title">Lạm dụng</h2>
 
     <div class="admin-grid admin-grid--stats">
-      <StatCard label="Bị chặn rate-limit (24h)" :value="overview.data.value?.rateLimited24h ?? '…'" icon="M12,1L3,5V11C3,16.55 6.84,21.74 12,23C17.16,21.74 21,16.55 21,11V5L12,1Z" />
-      <StatCard label="reCAPTCHA fail (24h)" :value="overview.data.value?.recaptchaFailed24h ?? '…'" icon="M12,2A9,9 0 0,0 3,11A9,9 0 0,0 12,20A9,9 0 0,0 21,11A9,9 0 0,0 12,2M12,4A7,7 0 0,1 19,11A7,7 0 0,1 12,18A7,7 0 0,1 5,11A7,7 0 0,1 12,4M12,6A1,1 0 0,0 11,7V11H7A1,1 0 0,0 7,13H11V17A1,1 0 0,0 13,17V13H17A1,1 0 0,0 17,11H13V7A1,1 0 0,0 12,6Z" />
+      <StatCard label="Bị chặn rate-limit (24h)" :value="overview.data.value?.rateLimited24h ?? '…'" :icon="mdiShieldOff" />
+      <StatCard label="reCAPTCHA fail (24h)" :value="overview.data.value?.recaptchaFailed24h ?? '…'" :icon="mdiShieldAlert" />
     </div>
 
     <div class="admin-grid admin-grid--charts">
@@ -2267,8 +2270,6 @@ const columns: Column[] = [
 .admin-panel__title { margin: 0 0 12px; font-size: 1rem; }
 .admin-grid { margin-bottom: 16px; }
 </style>
-```
-> Icon path dùng `mdiShieldOff`, `mdiShieldAlert` — import từ `@mdi/js` và dùng biến `mdiShieldOff`/`mdiShieldAlert` thay cho chuỗi hardcode.
 
 `frontend/src/admin/views/ConfigView.vue` — thay view tạm:
 ```vue
