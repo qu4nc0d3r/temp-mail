@@ -81,4 +81,12 @@ describe('verifyAccessJwt', () => {
     const wrongIss = `${h}.${enc({ iss: 'https://evil.example', aud: [AUD], exp: Math.floor(Date.now() / 1000) + 3600 })}.${s}`;
     expect(await verifyAccessJwt(wrongIss, { teamDomain: TEAM, audience: AUD, fetchImpl })).toBeNull();
   });
+
+  it('returns null (does not throw) for a valid header+payload with a malformed signature segment', async () => {
+    const { fetchImpl } = await validToken();
+    const header = enc({ alg: 'ES256', kid: 'test-key' });
+    const payload = enc({ iss: `https://${TEAM}`, aud: [AUD], exp: Math.floor(Date.now() / 1000) + 3600 });
+    const malformed = `${header}.${payload}.!!invalid-base64!!`;
+    await expect(verifyAccessJwt(malformed, { teamDomain: TEAM, audience: AUD, fetchImpl })).resolves.toBeNull();
+  });
 });

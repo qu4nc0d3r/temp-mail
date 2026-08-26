@@ -15,7 +15,7 @@ const props = defineProps<{
   offset: number;
 }>();
 
-const emit = defineEmits<{ 'update:offset': [value: number]; 'update:limit': [value: number] }>();
+const emit = defineEmits<{ 'update:offset': [value: number] }>();
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.total / props.limit)));
 const currentPage = computed(() => Math.floor(props.offset / props.limit) + 1);
@@ -60,7 +60,7 @@ function go(page: number): void {
 .data-table__empty { text-align: center; color: var(--text-muted); padding: 24px; }
 .table-pager { display: flex; align-items: center; gap: 12px; padding-top: 12px; justify-content: flex-end; font-size: 0.85rem; }
 .table-pager button {
-  min-height: 32px; min-width: 32px; padding: 0 10px;
+  min-height: 44px; min-width: 44px; padding: 0 10px;
   border: 1px solid var(--border); border-radius: 6px; background: var(--surface); color: var(--text);
 }
 .table-pager button:disabled { opacity: 0.4; cursor: not-allowed; }

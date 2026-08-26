@@ -1,3 +1,3 @@
 export function isAdminPath(pathname: string): boolean {
-  return pathname.startsWith('/admin');
+  return pathname === '/admin' || pathname.startsWith('/admin/');
 }

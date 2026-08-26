@@ -69,6 +69,7 @@ const columns: Column[] = [
           <option value="recaptcha_failed">recaptcha_failed</option>
         </select>
       </div>
+      <div v-if="events.error.value" class="admin-error">Không tải được dữ liệu: {{ events.error.value }}</div>
       <DataTable
         :columns="columns"
         :rows="(events.data.value?.events ?? []) as Record<string, unknown>[]"
@@ -76,7 +77,6 @@ const columns: Column[] = [
         :limit="20"
         :offset="offset"
         @update:offset="(v) => { offset = v; void events.refresh() }"
-        @update:limit="() => void events.refresh()"
       />
     </article>
   </section>
@@ -99,4 +99,12 @@ const columns: Column[] = [
   font-size: 0.85rem;
 }
 .admin-grid { margin-bottom: 16px; }
+.admin-error {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 12px;
+}
 </style>

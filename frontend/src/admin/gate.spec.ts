@@ -9,5 +9,7 @@ describe('isAdminPath', () => {
   it('does not match root or other paths', () => {
     expect(isAdminPath('/')).toBe(false);
     expect(isAdminPath('/inbox')).toBe(false);
+    expect(isAdminPath('/administrator')).toBe(false);
+    expect(isAdminPath('/administer')).toBe(false);
   });
 });

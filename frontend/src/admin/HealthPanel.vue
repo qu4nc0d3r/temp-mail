@@ -10,6 +10,9 @@ const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN
 
 <template>
   <section class="card health">
+    <div v-if="config?.devBypassEnabled === true" class="health__dev-warning">
+      CẢNH BÁO: ADMIN_DEV_BYPASS đang bật — API admin KHÔNG được xác thực
+    </div>
     <h2 class="health__title">Sức khỏe hệ thống</h2>
     <dl class="health__grid">
       <div><dt>Lần chạy cron cuối</dt><dd>{{ lastRun }}</dd></div>
@@ -23,6 +26,16 @@ const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN
 
 <style scoped>
 .health { padding: 18px; }
+.health__dev-warning {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
 .health__title { margin: 0 0 12px; font-size: 1rem; }
 .health__grid { display: grid; gap: 8px 24px; margin: 0; }
 .health__grid > div { display: flex; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--border); padding: 6px 0; }

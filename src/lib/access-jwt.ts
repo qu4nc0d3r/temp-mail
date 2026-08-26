@@ -86,7 +86,12 @@ export async function verifyAccessJwt(jwt: string, opts: AccessJwtOptions): Prom
   }
 
   const signingInput = new TextEncoder().encode(`${headerB64}.${payloadB64}`);
-  const signature = base64UrlToBytes(signatureB64);
+  let signature: Uint8Array;
+  try {
+    signature = base64UrlToBytes(signatureB64);
+  } catch {
+    return null;
+  }
   let valid: boolean;
   try {
     valid = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, cryptoKey, signature, signingInput);

@@ -24,6 +24,7 @@ const columns: Column[] = [
 <template>
   <section class="admin-view">
     <h2 class="admin-view__title">Mailbox</h2>
+    <div v-if="page.error.value" class="admin-error">Không tải được dữ liệu: {{ page.error.value }}</div>
     <article class="card admin-panel">
       <DataTable
         :columns="columns"
@@ -32,7 +33,6 @@ const columns: Column[] = [
         :limit="limit"
         :offset="offset"
         @update:offset="(v) => (offset = v)"
-        @update:limit="(v) => (limit = v)"
       />
     </article>
   </section>
@@ -41,4 +41,12 @@ const columns: Column[] = [
 <style scoped>
 .admin-view__title { margin: 0 0 16px; font-size: 1.2rem; }
 .admin-panel { padding: 18px; }
+.admin-error {
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+  border: 1px solid var(--danger);
+  color: var(--danger);
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+}
 </style>
