@@ -1,4 +1,4 @@
-import type { MessageDetail, MessageSummary, MailboxRecord, NewMessage } from '../env';
+import type { AdminEventType, MessageDetail, MessageSummary, MailboxRecord, NewMessage } from '../env';
 
 const DEFAULT_LIST_LIMIT = 50;
 
@@ -112,4 +112,23 @@ export async function checkAndRecordUsage(
   if (row.count >= limit) return false;
   await db.prepare('UPDATE ip_usage SET count = count + 1 WHERE ip_hash = ?').bind(ipHash).run();
   return true;
+}
+
+export async function logEvent(
+  db: D1Database,
+  e: { type: AdminEventType; ipHash?: string | null; address?: string | null; detail?: string | null; createdAtMs?: number },
+): Promise<void> {
+  try {
+    await db
+      .prepare('INSERT INTO admin_events (type, ip_hash, address, detail, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(e.type, e.ipHash ?? null, e.address ?? null, e.detail ?? null, e.createdAtMs ?? Date.now())
+      .run();
+  } catch {
+    // nhật ký admin không được làm hỏng luồng chính — nuốt lỗi
+  }
+}
+
+export async function pruneEvents(db: D1Database, beforeMs: number): Promise<number> {
+  const res = await db.prepare('DELETE FROM admin_events WHERE created_at < ?').bind(beforeMs).run();
+  return res.meta.changes;
 }

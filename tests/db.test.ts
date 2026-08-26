@@ -3,7 +3,9 @@ import { setupDb } from './helpers/db';
 import {
   createMailbox, getActiveMailbox, extendMailbox, deleteMailbox,
   listMessages, getMessage, insertMessage, cleanupExpired, checkAndRecordUsage,
+  logEvent, pruneEvents,
 } from '../src/db/queries';
+import type { AdminEventRow } from '../src/env';
 
 let db: D1Database;
 const NOW = 1_700_000_000_000;
@@ -124,5 +126,27 @@ describe('checkAndRecordUsage', () => {
   it('tracks ips independently', async () => {
     await checkAndRecordUsage(db, 'ip1', NOW);
     expect(await checkAndRecordUsage(db, 'ip2', NOW)).toBe(true);
+  });
+});
+
+describe('admin_events', () => {
+  it('logEvent inserts a row and never throws', async () => {
+    await logEvent(db, { type: 'mailbox_created', ipHash: 'h1', address: 'a@tempmail.test' });
+    const rows = await db.prepare('SELECT * FROM admin_events').all<AdminEventRow>();
+    expect(rows.results).toHaveLength(1);
+    expect(rows.results[0].type).toBe('mailbox_created');
+    expect(rows.results[0].ip_hash).toBe('h1');
+    expect(rows.results[0].created_at).toBeGreaterThan(0);
+    // không ném lỗi kể cả khi thiếu field
+    await logEvent(db, { type: 'cron_cleanup' });
+  });
+
+  it('pruneEvents deletes only events older than beforeMs', async () => {
+    await logEvent(db, { type: 'mailbox_created', createdAtMs: NOW - 10 * 24 * 60 * 60 * 1000 });
+    await logEvent(db, { type: 'mailbox_created', createdAtMs: NOW - 1000 });
+    const removed = await pruneEvents(db, NOW - 7 * 24 * 60 * 60 * 1000);
+    expect(removed).toBe(1);
+    const left = await db.prepare('SELECT COUNT(*) AS c FROM admin_events').first<{ c: number }>();
+    expect(left?.c).toBe(1);
   });
 });
