@@ -27,8 +27,11 @@ const inbox = useInbox({
   session,
   onNewMail: (fresh) => {
     const subject = fresh[0]?.subject ?? 'New mail';
-    success(`${subject} — ${fresh.length} new message${fresh.length > 1 ? 's' : ''}`);
-    void notifyNewMail(subject, fresh.length); // tab ẩn mới notify; hàm tự kiểm tra
+    // tab ẩn thì bỏ toast (user không nhìn thấy), notifyNewMail đã tự gate visibility
+    if (document.visibilityState !== 'hidden') {
+      success(`${subject} — ${fresh.length} new message${fresh.length > 1 ? 's' : ''}`);
+    }
+    void notifyNewMail(subject, fresh.length);
   },
 });
 
@@ -53,8 +56,7 @@ async function ensureSession() {
     creating.value = true;
     try {
       await create();
-      inbox.clearRead(); // mailbox mới → bỏ trạng thái đã đọc cũ
-      await inbox.refresh();
+      await inbox.refresh(); // reset theo địa chỉ mailbox mới do chính useInbox xử lý
     } catch (e) {
       toastError(e instanceof Error ? e.message : 'Could not create mailbox');
     } finally {
@@ -102,7 +104,6 @@ async function onSubmitCustom(name: string) {
   creating.value = true;
   try {
     await create(name);
-    inbox.clearRead(); // mailbox mới → bỏ trạng thái đã đọc cũ
     customOpen.value = false;
     success(`Created ${name}@${session.value?.address.split('@')[1]}`);
     await inbox.refresh();
@@ -120,7 +121,7 @@ function onOpenMessage(id: string) {
 }
 
 onMounted(async () => {
-  document.title = 'Temp Mail';
+  // title/favicon do watch immediate ở trên sở hữu — không set lại ở đây
   await ensureSession();
   inbox.start();
 });
