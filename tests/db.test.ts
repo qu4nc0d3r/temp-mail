@@ -3,9 +3,9 @@ import { setupDb } from './helpers/db';
 import {
   createMailbox, getActiveMailbox, extendMailbox, deleteMailbox,
   listMessages, getMessage, insertMessage, cleanupExpired, checkAndRecordUsage,
-  logEvent, pruneEvents,
+  logEvent, pruneEvents, getAdminOverview, getStatsSeries,
 } from '../src/db/queries';
-import type { AdminEventRow } from '../src/env';
+import type { AdminEventRow, AdminOverview, StatsPoint } from '../src/env';
 
 let db: D1Database;
 const NOW = 1_700_000_000_000;
@@ -148,5 +148,40 @@ describe('admin_events', () => {
     expect(removed).toBe(1);
     const left = await db.prepare('SELECT COUNT(*) AS c FROM admin_events').first<{ c: number }>();
     expect(left?.c).toBe(1);
+  });
+});
+
+describe('admin overview & stats', () => {
+  beforeEach(async () => {
+    await createMailbox(db, 'live@tempmail.test', 'h', NOW - 1000, NOW + TTL);
+    await createMailbox(db, 'old@tempmail.test', 'h', NOW - TTL, NOW - 1);
+    await insertMessage(db, {
+      id: 'm1', mailbox: 'live@tempmail.test', fromName: null, fromAddr: 's@x.com',
+      subject: 'S', preview: 'p', htmlBody: null, textBody: 'b', attachmentsCount: 0, receivedAt: NOW - 5 * 60 * 1000,
+    });
+    await logEvent(db, { type: 'rate_limited', ipHash: 'h1', createdAtMs: NOW - 1000 });
+  });
+
+  it('getAdminOverview counts the right windows', async () => {
+    const ov = await getAdminOverview(db, NOW);
+    expect(ov.activeMailboxes).toBe(1);            // live còn hạn
+    expect(ov.messages24h).toBe(1);
+    expect(ov.mailboxesCreated24h).toBe(2);        // live + old đều tạo trong 24h
+    expect(ov.rateLimited24h).toBe(1);
+    expect(ov.rateLimited7d).toBe(1);
+    expect(ov.recaptchaFailed24h).toBe(0);
+    expect(ov.mailPerMinute).toBeCloseTo(1 / 1440, 4);
+    expect(ov.lastCronRunAt).toBeNull();
+  });
+
+  it('getStatsSeries fills all buckets with zero gaps', async () => {
+    const bucketMs = 15 * 60 * 1000;
+    const points = await getStatsSeries(db, NOW, 24 * 60 * 60 * 1000, bucketMs);
+    expect(points.length).toBe(96);
+    const msgSum = points.reduce((s, p) => s + p.messages, 0);
+    expect(msgSum).toBe(1);
+    const last = points[points.length - 1];
+    expect(last.t).toBe(Math.floor((NOW - 5 * 60 * 1000) / bucketMs) * bucketMs);
+    expect(last.messages).toBe(1);
   });
 });

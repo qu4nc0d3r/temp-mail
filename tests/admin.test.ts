@@ -4,7 +4,8 @@ import { SELF, env } from 'cloudflare:test';
 import { setupDb } from './helpers/db';
 import { requireAdmin } from '../src/lib/auth';
 import { errorHandler } from '../src/lib/errors';
-import type { Env } from '../src/env';
+import { createMailbox, insertMessage, logEvent } from '../src/db/queries';
+import type { AdminOverview, Env, StatsPoint } from '../src/env';
 
 beforeEach(async () => {
   await setupDb();
@@ -52,5 +53,25 @@ describe('GET /api/admin/config', () => {
     const body = await res.json<{ domain: string; recaptchaEnabled: boolean; devBypassEnabled: boolean }>();
     expect(body.domain).toBe(env.DOMAIN);
     expect(body.devBypassEnabled).toBe(true);
+  });
+});
+
+describe('GET /api/admin/overview & /stats', () => {
+  it('overview returns KPI shape', async () => {
+    await createMailbox(env.DB, `a@${env.DOMAIN}`, 'h', Date.now() - 1000, Date.now() + 60_000);
+    const res = await SELF.fetch('https://example.com/api/admin/overview');
+    expect(res.status).toBe(200);
+    const body = await res.json<AdminOverview>();
+    expect(body.activeMailboxes).toBe(1);
+    expect(typeof body.mailPerMinute).toBe('number');
+  });
+
+  it('stats validates range param (7d vs 24h)', async () => {
+    const r24 = await (await SELF.fetch('https://example.com/api/admin/stats?range=24h')).json<{ range: string; points: StatsPoint[] }>();
+    expect(r24.range).toBe('24h');
+    expect(r24.points.length).toBe(96);
+    const r7 = await (await SELF.fetch('https://example.com/api/admin/stats?range=7d')).json<{ range: string; points: StatsPoint[] }>();
+    expect(r7.range).toBe('7d');
+    expect(r7.points.length).toBe(28);
   });
 });

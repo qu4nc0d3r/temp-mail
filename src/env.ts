@@ -23,6 +23,28 @@ export interface AdminEventRow {
   created_at: number;
 }
 
+export interface AdminOverview {
+  activeMailboxes: number;
+  messages24h: number;
+  mailPerMinute: number;
+  mailboxesCreated24h: number;
+  rateLimited24h: number;
+  rateLimited7d: number;
+  recaptchaFailed24h: number;
+  recaptchaFailed7d: number;
+  lastCronRunAt: number | null;
+  lastCronCleanup: { deletedMailboxes: number; deletedMessages: number } | null;
+  serverTime: number;
+}
+
+export interface StatsPoint {
+  t: number;
+  messages: number;
+  mailboxes: number;
+  rateLimited: number;
+  recaptchaFailed: number;
+}
+
 export interface MailboxRecord {
   address: string;
   token_hash: string;
