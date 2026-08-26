@@ -1842,6 +1842,7 @@ watch(() => props.refreshTick, () => {
   margin-bottom: 16px;
 }
 </style>
+```
 
 - [ ] **Step 4: Chạy lại — PASS**
 
@@ -2270,6 +2271,7 @@ const columns: Column[] = [
 .admin-panel__title { margin: 0 0 12px; font-size: 1rem; }
 .admin-grid { margin-bottom: 16px; }
 </style>
+```
 
 `frontend/src/admin/views/ConfigView.vue` — thay view tạm:
 ```vue
