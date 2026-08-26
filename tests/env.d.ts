@@ -13,6 +13,9 @@ declare namespace Cloudflare {
     RECAPTCHA_SITE_KEY?: string;
     RECAPTCHA_SECRET_KEY?: string;
     RECAPTCHA_THRESHOLD?: string;
+    ACCESS_TEAM_DOMAIN?: string;
+    ACCESS_APP_AUD?: string;
+    ADMIN_DEV_BYPASS?: string;
     TEST_MIGRATIONS: import('@cloudflare/vitest-pool-workers').D1Migration[];
   }
 }
