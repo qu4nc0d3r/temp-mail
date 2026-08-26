@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { ref, computed, onUnmounted } from 'vue';
 import MdiIcon from './MdiIcon.vue';
 import { formatCountdown } from '../lib/format';
 import {
-  mdiContentCopy, mdiPlus, mdiClockOutline, mdiTrashCanOutline, mdiPencilOutline,
+  mdiContentCopy, mdiCheckBold, mdiPlus, mdiClockOutline, mdiTrashCanOutline, mdiPencilOutline,
 } from '@mdi/js';
 import type { Session } from '../composables/useMailbox';
 
@@ -14,6 +14,22 @@ const props = defineProps<{
 const emit = defineEmits<{ copy: []; extend: []; remove: []; openCustom: [] }>();
 
 const address = computed(() => props.session?.address ?? '');
+
+const copied = ref(false);
+let copyTimer: ReturnType<typeof setTimeout> | undefined;
+
+function onCopyClick() {
+  emit('copy');
+  copied.value = true;
+  if (copyTimer) clearTimeout(copyTimer);
+  copyTimer = setTimeout(() => {
+    copied.value = false;
+  }, 1500);
+}
+
+onUnmounted(() => {
+  if (copyTimer) clearTimeout(copyTimer);
+});
 
 const urgency = computed(() => {
   if (!props.session) return 'none';
@@ -34,9 +50,14 @@ const urgency = computed(() => {
     </div>
     <div class="address-row">
       <code class="address" :title="address">{{ address }}</code>
-      <button class="copy-btn" aria-label="Copy address" @click="emit('copy')">
-        <MdiIcon :path="mdiContentCopy" :size="18" />
-        <span>Copy</span>
+      <button
+        class="copy-btn"
+        :class="{ 'copy-btn--done': copied }"
+        aria-label="Copy address"
+        @click="onCopyClick"
+      >
+        <MdiIcon :path="copied ? mdiCheckBold : mdiContentCopy" :size="18" />
+        <span>{{ copied ? 'Copied' : 'Copy' }}</span>
       </button>
     </div>
     <div class="actions">
@@ -89,6 +110,7 @@ const urgency = computed(() => {
   transition: filter 0.15s ease, transform 0.05s ease;
 }
 .copy-btn:hover { filter: brightness(1.08); }
+.copy-btn--done { background: var(--success); }
 .countdown {
   display: inline-flex;
   align-items: center;

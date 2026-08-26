@@ -28,6 +28,7 @@ beforeEach(() => {
 
 afterEach(() => {
   document.body.innerHTML = '';
+  document.head.querySelectorAll('link[rel="icon"]').forEach((l) => l.remove());
   vi.restoreAllMocks();
 });
 
@@ -38,6 +39,126 @@ describe('App', () => {
     const wrapper = mount(App);
     await new Promise((r) => setTimeout(r, 0));
     expect(wrapper.text()).toContain('abc@x.com');
+    wrapper.unmount();
+  });
+
+  it('deletes the mailbox through a confirm dialog', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      if (init?.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+
+    await wrapper.find('.ghost-btn--danger').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    // dialog teleport vào body — không dùng window.confirm nữa
+    const confirmBtn = document.querySelector<HTMLButtonElement>('.confirm-actions .danger');
+    expect(confirmBtn).not.toBeNull();
+    expect(document.body.textContent).toContain('Delete permanently');
+    confirmBtn!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    const deleteCall = fetchMock.mock.calls.find((c) => c[1]?.method === 'DELETE');
+    expect(deleteCall).toBeDefined();
+    expect(String(deleteCall![0])).toContain('z%40x.com');
+    expect(globalThis.localStorage.getItem('tempmail.session')).toBeNull();
+    wrapper.unmount();
+  });
+
+  it('shows the base favicon when there are no unread messages', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+    });
+    mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+    const link = document.querySelector('link[rel="icon"]');
+    expect(link).not.toBeNull();
+    const svg = decodeURIComponent((link!.getAttribute('href') ?? '').replace('data:image/svg+xml,', ''));
+    expect(svg).toContain('2f6bff');
+    expect(svg).not.toContain('e5484d');
+  });
+
+  it('reflects unread count in title and marks a message read on open', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    const m1 = { id: 'm1', from_name: 'Alice', from_addr: 'a@x', subject: 'Hi', preview: 'p', received_at: Date.now() };
+    const m2 = { id: 'm2', from_name: 'Bob', from_addr: 'b@x', subject: 'Yo', preview: 'p', received_at: Date.now() };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      if (/\/messages\/[^/]+$/.test(url)) {
+        return new Response(JSON.stringify({ message: { ...m1, html_body: null, text_body: 'hello', attachments_count: 0 } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [m1, m2] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(document.title).toBe('(2) Temp Mail');
+    const favicon = decodeURIComponent((document.querySelector('link[rel="icon"]')!.getAttribute('href') ?? '').replace('data:image/svg+xml,', ''));
+    expect(favicon).toContain('e5484d');
+
+    await wrapper.findAll('.inbox__item')[0].trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(document.title).toBe('(1) Temp Mail');
+    expect(JSON.parse(globalThis.localStorage.getItem('tempmail.read') || '[]')).toEqual(['m1']);
+    wrapper.unmount();
+  });
+
+  it('clears read state, title and favicon badge when the mailbox is deleted', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    globalThis.localStorage.setItem('tempmail.read', JSON.stringify(['m1']));
+    const m1 = { id: 'm1', from_name: 'Alice', from_addr: 'a@x', subject: 'Hi', preview: 'p', received_at: Date.now() };
+    const m2 = { id: 'm2', from_name: 'Bob', from_addr: 'b@x', subject: 'Yo', preview: 'p', received_at: Date.now() };
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      if (init?.method === 'DELETE') {
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [m1, m2] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+
+    // m1 đã đọc từ localStorage → còn 1 unread
+    expect(document.title).toBe('(1) Temp Mail');
+
+    await wrapper.find('.ghost-btn--danger').trigger('click');
+    await new Promise((r) => setTimeout(r, 0));
+    document.querySelector<HTMLButtonElement>('.confirm-actions .danger')!.click();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(document.title).toBe('Temp Mail');
+    expect(globalThis.localStorage.getItem('tempmail.read')).toBeNull();
+    const svg = decodeURIComponent((document.querySelector('link[rel="icon"]')!.getAttribute('href') ?? '').replace('data:image/svg+xml,', ''));
+    expect(svg).not.toContain('e5484d');
     wrapper.unmount();
   });
 
