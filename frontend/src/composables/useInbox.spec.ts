@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { ref } from 'vue';
+import { ref, nextTick } from 'vue';
 import { useInbox } from './useInbox';
 
 describe('useInbox', () => {
@@ -116,6 +116,48 @@ describe('useInbox', () => {
     ));
     await p;
     expect(inbox.messages.value).toHaveLength(0);
+  });
+
+  it('does not fetch when the session has expired', async () => {
+    const expiredSession = ref({ address: 'a@x.com', token: 'tok', expiresAt: Date.now() - 1 });
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ messages: [] }), { status: 200 }),
+    );
+    const inbox = useInbox({ session: expiredSession, onNewMail: () => {} });
+    await inbox.refresh();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it('does not flip loading on later refreshes once messages exist', async () => {
+    const messages = [{ id: 'm1', from_name: 'A', from_addr: 'a', subject: 'S', preview: 'p', received_at: 1 }];
+    let resolveFetch!: (r: Response) => void;
+    const pending = new Promise<Response>((r) => { resolveFetch = r; });
+    vi.spyOn(globalThis, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ messages }), { status: 200 }))
+      .mockReturnValueOnce(pending as Promise<Response>);
+    const inbox = useInbox({ session, onNewMail: () => {} });
+    await inbox.refresh(); // load lần đầu (inbox trống → có skeleton)
+    const p = inbox.refresh(); // refresh lần 2 khi đã có messages
+    expect(inbox.loading.value).toBe(false);
+    resolveFetch(new Response(JSON.stringify({ messages }), { status: 200 }));
+    await p;
+  });
+
+  it('resets inbox state when the session address changes', async () => {
+    const s = ref({ address: 'a@x.com', token: 'tok', expiresAt: Date.now() + 600_000 });
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({
+      messages: [{ id: 'm1', from_name: 'A', from_addr: 'a', subject: 'S', preview: 'p', received_at: 1 }],
+    }), { status: 200 }));
+    const inbox = useInbox({ session: s, onNewMail: () => {} });
+    await inbox.refresh();
+    inbox.markRead('m1');
+    expect(inbox.messages.value).toHaveLength(1);
+
+    s.value = { address: 'new@x.com', token: 't2', expiresAt: Date.now() + 600_000 };
+    await nextTick();
+    expect(inbox.messages.value).toHaveLength(0);
+    expect(inbox.readIds.value).toHaveLength(0);
+    expect(inbox.unreadCount.value).toBe(0);
   });
 
   it('reset clears messages, read state and unreadCount', async () => {

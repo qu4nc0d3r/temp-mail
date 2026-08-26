@@ -89,19 +89,10 @@ watch(
 .state--error { color: var(--danger); }
 .skeleton-detail { display: flex; flex-direction: column; gap: 12px; }
 .skeleton-meta { display: flex; gap: 14px; }
-.skeleton {
-  display: block;
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite linear;
-}
 .skeleton--title { height: 18px; width: 55%; }
 .skeleton--meta { width: 90px; }
 .skeleton--body { height: 14px; }
 .skeleton--body-short { width: 70%; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 .detail-meta { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; color: var(--text-muted); font-size: 0.85rem; }
 .meta-item { display: inline-flex; align-items: center; gap: 6px; }
 .mail-frame {

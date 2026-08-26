@@ -126,16 +126,8 @@ const unreadCount = computed(() => props.messages.filter((m) => !props.readIds.i
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
 }
-.skeleton {
-  height: 12px;
-  border-radius: 6px;
-  background: linear-gradient(90deg, var(--border) 25%, var(--bg) 50%, var(--border) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite linear;
-}
 .skeleton--dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
 .skeleton--line-sm { width: 30%; }
 .skeleton--line { flex: 1; }
 .skeleton--line-lg { width: 80%; }
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
 </style>

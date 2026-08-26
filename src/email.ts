@@ -1,11 +1,12 @@
 import PostalMime from 'postal-mime';
-import type { EmailMessage } from 'cloudflare:email';
 import { getActiveMailbox, insertMessage } from './db/queries';
 import { generateId } from './lib/token';
 import { makePreview, stripHtml } from './lib/text';
 import type { Env } from './env';
 
-export async function email(message: EmailMessage, env: Env): Promise<void> {
+// Handler email thực nhận ForwardableEmailMessage (có `raw`, `headers`, `forward`...),
+// không phải base EmailMessage — type này là global từ @cloudflare/workers-types.
+export async function email(message: ForwardableEmailMessage, env: Env): Promise<void> {
   const nowMs = Date.now();
   const rawTo: unknown = message.to;
   const to =
