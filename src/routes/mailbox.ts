@@ -3,7 +3,7 @@ import { ApiError } from '../lib/errors';
 import { authenticate } from '../lib/auth';
 import {
   createMailbox, getActiveMailbox, checkAndRecordUsage, listMessages,
-  getMessage, extendMailbox, deleteMailbox,
+  getMessage, extendMailbox, deleteMailbox, logEvent,
 } from '../db/queries';
 import { generateToken, hashToken, hashIp } from '../lib/token';
 import { validateLocalPart } from '../lib/validate';
@@ -19,14 +19,21 @@ mailboxRoutes.post('/', async (c) => {
   const nowMs = Date.now();
   const ip = c.req.header('cf-connecting-ip') ?? 'unknown';
 
+  const ipHash = await hashIp(ip, c.env.SALT_IP);
+
   const body = (await c.req.json().catch(() => ({}))) as { custom?: unknown; recaptchaToken?: unknown };
   const recaptchaToken = typeof body.recaptchaToken === 'string' ? body.recaptchaToken : '';
   const verified = await verifyRecaptcha(c.env, recaptchaToken, ip);
-  if (!verified) throw new ApiError(403, 'RECAPTCHA_FAILED', 'Could not verify you are human');
+  if (!verified) {
+    await logEvent(c.env.DB, { type: 'recaptcha_failed', ipHash });
+    throw new ApiError(403, 'RECAPTCHA_FAILED', 'Could not verify you are human');
+  }
 
-  const ipHash = await hashIp(ip, c.env.SALT_IP);
   const allowed = await checkAndRecordUsage(c.env.DB, ipHash, nowMs);
-  if (!allowed) throw new ApiError(429, 'RATE_LIMITED', 'Too many mailboxes created this hour');
+  if (!allowed) {
+    await logEvent(c.env.DB, { type: 'rate_limited', ipHash, detail: 'per_hour_limit' });
+    throw new ApiError(429, 'RATE_LIMITED', 'Too many mailboxes created this hour');
+  }
   let address: string;
 
   if (body.custom !== undefined) {
@@ -44,6 +51,8 @@ mailboxRoutes.post('/', async (c) => {
   const tokenHash = await hashToken(token, c.env.SALT_TOKEN);
   const created = await createMailbox(c.env.DB, address, tokenHash, nowMs, nowMs + TTL_MS);
   if (!created) throw new ApiError(409, 'TAKEN', 'Name already in use');
+
+  await logEvent(c.env.DB, { type: 'mailbox_created', ipHash, address });
 
   return c.json({ address, token, expiresAt: nowMs + TTL_MS, serverTime: nowMs }, 201);
 });

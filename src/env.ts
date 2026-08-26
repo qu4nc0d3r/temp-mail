@@ -1,4 +1,7 @@
 export interface Env {
+  ACCESS_TEAM_DOMAIN?: string;
+  ACCESS_APP_AUD?: string;
+  ADMIN_DEV_BYPASS?: string;
   DB: D1Database;
   ASSETS: Fetcher;
   DOMAIN: string;
@@ -7,6 +10,55 @@ export interface Env {
   RECAPTCHA_SITE_KEY?: string;
   RECAPTCHA_SECRET_KEY?: string;
   RECAPTCHA_THRESHOLD?: string;
+}
+
+export type AdminEventType = 'mailbox_created' | 'rate_limited' | 'recaptcha_failed' | 'cron_cleanup';
+
+export interface AdminEventRow {
+  id: number;
+  type: AdminEventType;
+  ip_hash: string | null;
+  address: string | null;
+  detail: string | null;
+  created_at: number;
+}
+
+export interface AdminMailboxRow {
+  address: string;
+  created_at: number;
+  expires_at: number;
+}
+
+export interface AdminMessageRow {
+  id: string;
+  mailbox: string;
+  from_name: string | null;
+  from_addr: string;
+  subject: string | null;
+  preview: string;
+  received_at: number;
+}
+
+export interface AdminOverview {
+  activeMailboxes: number;
+  messages24h: number;
+  mailPerMinute: number;
+  mailboxesCreated24h: number;
+  rateLimited24h: number;
+  rateLimited7d: number;
+  recaptchaFailed24h: number;
+  recaptchaFailed7d: number;
+  lastCronRunAt: number | null;
+  lastCronCleanup: { deletedMailboxes: number; deletedMessages: number } | null;
+  serverTime: number;
+}
+
+export interface StatsPoint {
+  t: number;
+  messages: number;
+  mailboxes: number;
+  rateLimited: number;
+  recaptchaFailed: number;
 }
 
 export interface MailboxRecord {

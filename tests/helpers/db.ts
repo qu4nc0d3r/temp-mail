@@ -9,5 +9,5 @@ export async function setupDb(): Promise<D1Database> {
 }
 
 export async function resetDb(db: D1Database): Promise<void> {
-  await db.exec('DELETE FROM messages; DELETE FROM ip_usage; DELETE FROM mailboxes;');
+  await db.exec('DELETE FROM messages; DELETE FROM ip_usage; DELETE FROM mailboxes; DELETE FROM admin_events;');
 }

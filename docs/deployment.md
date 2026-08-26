@@ -38,6 +38,13 @@ npm run deploy   # = vite build + wrangler deploy
 - Mở site, copy địa chỉ, gửi email từ Gmail → mail xuất hiện trong inbox trong vòng vài giây (poll 5s).
 - Thử: tên custom, extend, xoá, hết hạn 10 phút, rate limit 20/h.
 
+## Cloudflare Access cho /admin
+
+1. Trên CF Zero Trust: tạo Access application tựa `toolviet.net` với policy path `/admin*`.
+2. Lấy Audience tag (AUD) của application + tên team domain (vd `toolviet.cloudflareaccess.com`).
+3. Set secret: `wrangler secret put ACCESS_TEAM_DOMAIN` và `wrangler secret put ACCESS_APP_AUD`.
+4. Chỉ set `ADMIN_DEV_BYPASS=true` ở .dev.vars local — KHÔNG đặt ở production.
+
 ## Lưu ý
 
 - Email Routing chỉ nhận — dịch vụ này **không gửi mail đi**.

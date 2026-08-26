@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SELF, env } from 'cloudflare:test';
 import { setupDb } from './helpers/db';
+import { logEvent } from '../src/db/queries';
 
 const DOMAIN = env.DOMAIN;
 
@@ -77,5 +78,23 @@ describe('POST /api/mailbox', () => {
     const blocked = await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
     expect(blocked.status).toBe(429);
     expect((await blocked.json<{ error: { code: string } }>()).error.code).toBe('RATE_LIMITED');
+  });
+});
+
+describe('admin_events instrumentation', () => {
+  it('records mailbox_created on successful create', async () => {
+    await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+    const rows = await env.DB.prepare(`SELECT * FROM admin_events WHERE type = 'mailbox_created'`).all<{ address: string }>();
+    expect(rows.results.length).toBe(1);
+    expect(rows.results[0].address).toMatch(new RegExp(`@${DOMAIN.replace(/\./g, '\\.')}$`));
+  });
+
+  it('records rate_limited when blocked', async () => {
+    for (let i = 0; i < 20; i++) {
+      await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+    }
+    await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+    const rows = await env.DB.prepare(`SELECT * FROM admin_events WHERE type = 'rate_limited'`).all();
+    expect(rows.results.length).toBe(1);
   });
 });

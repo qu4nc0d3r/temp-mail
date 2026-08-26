@@ -1,3 +1,8 @@
 SALT_TOKEN=dev-salt-token-change-me
 SALT_IP=dev-salt-ip-change-me
 RECAPTCHA_SECRET_KEY=your-recaptcha-v3-secret-key
+# Cloudflare Access — bắt buộc khi deploy (xem docs/deployment.md).
+# Bỏ cài ADMIN_DEV_BYPASS=true khi dev local muốn bỏ qua verify.
+ACCESS_TEAM_DOMAIN=your-team.cloudflareaccess.com
+ACCESS_APP_AUD=your-access-application-audience-tag
+ADMIN_DEV_BYPASS=true
