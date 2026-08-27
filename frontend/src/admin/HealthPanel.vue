@@ -25,7 +25,7 @@ const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN
 </template>
 
 <style scoped>
-.health { padding: 18px; }
+.health { padding: 20px; }
 .health__dev-warning {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   border: 1px solid var(--danger);

@@ -16,7 +16,7 @@ defineProps<{ label: string; value: string | number; hint?: string; icon: string
 </template>
 
 <style scoped>
-.stat { display: flex; gap: 14px; padding: 18px; }
+.stat { display: flex; gap: 16px; padding: 20px; }
 .stat__icon {
   display: inline-flex; align-items: center; justify-content: center;
   width: 44px; height: 44px; border-radius: 10px; flex: none;

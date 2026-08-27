@@ -47,13 +47,13 @@ watch(() => props.refreshTick, () => {
 </template>
 
 <style scoped>
-.admin-view__title { margin: 0 0 16px; font-size: 1.2rem; }
+.admin-view__title { margin: 0 0 20px; font-size: 1.2rem; }
 .admin-grid--wide { grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 1200px) {
   .admin-grid--wide { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
 }
-.admin-panel { padding: 18px; }
-.admin-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.admin-panel { padding: 20px; }
+.admin-panel__head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
 .admin-panel__title { margin: 0; font-size: 1rem; }
 .admin-error {
   background: color-mix(in srgb, var(--danger) 10%, transparent);
