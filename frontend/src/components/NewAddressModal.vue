@@ -4,13 +4,17 @@ import AppModal from './AppModal.vue';
 import MdiIcon from './MdiIcon.vue';
 import { mdiKeyVariant } from '@mdi/js';
 
-const props = defineProps<{ open: boolean; loading: boolean }>();
+const props = defineProps<{ open: boolean; loading: boolean; customNameEnabled?: boolean }>();
 const emit = defineEmits<{ close: []; submit: [name: string] }>();
 
 const name = ref('');
 const error = ref<string | null>(null);
 
 function submit() {
+  if (props.customNameEnabled === false) {
+    emit('submit', '');
+    return;
+  }
   const value = name.value.trim().toLowerCase();
   if (!/^[a-z0-9._-]{3,30}$/.test(value)) {
     error.value = '3-30 chars: lowercase letters, digits, dot, dash, underscore';
@@ -24,20 +28,22 @@ function submit() {
 <template>
   <AppModal :open="props.open" title="Custom address" size="sm" @close="emit('close')">
     <form class="form" @submit.prevent="submit">
-      <label class="form__label" for="custom-name">Choose a name</label>
-      <div class="form__row">
-        <input
-          id="custom-name"
-          v-model="name"
-          class="form__input"
-          placeholder="john.doe"
-          autocomplete="off"
-          spellcheck="false"
-          maxlength="30"
-        />
-        <span class="form__suffix">@domain</span>
-      </div>
-      <p v-if="error" class="form__error">{{ error }}</p>
+      <template v-if="props.customNameEnabled !== false">
+        <label class="form__label" for="custom-name">Choose a name</label>
+        <div class="form__row">
+          <input
+            id="custom-name"
+            v-model="name"
+            class="form__input"
+            placeholder="john.doe"
+            autocomplete="off"
+            spellcheck="false"
+            maxlength="30"
+          />
+          <span class="form__suffix">@domain</span>
+        </div>
+        <p v-if="error" class="form__error">{{ error }}</p>
+      </template>
       <button class="form__submit" type="submit" :disabled="props.loading">
         <MdiIcon :path="mdiKeyVariant" :size="18" /> {{ props.loading ? 'Creating…' : 'Create mailbox' }}
       </button>

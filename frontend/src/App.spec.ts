@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { mount } from '@vue/test-utils';
 import App from './App.vue';
 import { resetRecaptchaState } from './lib/recaptcha';
+import { resetPublicConfigCache } from './api/client';
 
 function stubGrecaptcha() {
   (window as unknown as { grecaptcha: { ready: (cb: () => void) => void; execute: () => Promise<string> } }).grecaptcha = {
@@ -23,6 +24,7 @@ beforeEach(() => {
   globalThis.localStorage.clear();
   document.title = '';
   resetRecaptchaState();
+  resetPublicConfigCache();
   stubGrecaptcha();
 });
 
@@ -172,6 +174,22 @@ describe('App', () => {
     await new Promise((r) => setTimeout(r, 0));
     // session hết hạn → App tự tạo mới và hiển thị địa chỉ mới (không còn expired banner)
     expect(wrapper.text()).toContain('abc@x.com');
+    wrapper.unmount();
+  });
+
+  it('shows a maintenance banner and does not auto-create when mailbox_create is off', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '', features: { customName: false, mailboxCreate: false } }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(wrapper.text()).toContain('bảo trì');
+    const createCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/api/mailbox') && c[1]?.method === 'POST');
+    expect(createCall).toBeUndefined();
     wrapper.unmount();
   });
 });

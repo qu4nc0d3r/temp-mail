@@ -10,6 +10,7 @@ import type { Session } from '../composables/useMailbox';
 const props = defineProps<{
   session: Session | null;
   remainingMs: number;
+  customNameEnabled?: boolean;
 }>();
 const emit = defineEmits<{ copy: []; extend: []; remove: []; openCustom: [] }>();
 
@@ -64,7 +65,7 @@ const urgency = computed(() => {
       <button class="ghost-btn" @click="emit('extend')">
         <MdiIcon :path="mdiPlus" :size="18" /> +10 min
       </button>
-      <button class="ghost-btn" @click="emit('openCustom')">
+      <button v-if="props.customNameEnabled !== false" class="ghost-btn" @click="emit('openCustom')">
         <MdiIcon :path="mdiPencilOutline" :size="18" /> Custom
       </button>
       <button class="ghost-btn ghost-btn--danger" aria-label="Delete mailbox" @click="emit('remove')">

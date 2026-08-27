@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { computed, ref, watch, onMounted, onUnmounted } from 'vue';
 import MdiIcon from './components/MdiIcon.vue';
 import ToastContainer from './components/ToastContainer.vue';
 import AddressCard from './components/AddressCard.vue';
@@ -10,11 +10,11 @@ import ConfirmDialog from './components/ConfirmDialog.vue';
 import { useMailbox } from './composables/useMailbox';
 import { useInbox } from './composables/useInbox';
 import { useToast } from './composables/useToast';
-import { ApiClientError } from './api/client';
+import { getPublicConfig, ApiClientError, type PublicConfig } from './api/client';
 import { copyText } from './lib/clipboard';
 import { notifyNewMail } from './lib/notify';
 import { updateFavicon } from './lib/favicon';
-import { mdiLightningBolt, mdiCheckBold } from '@mdi/js';
+import { mdiLightningBolt, mdiCheckBold, mdiAlertCircleOutline } from '@mdi/js';
 
 const { session, remainingMs, expired, create, extend, remove, clear } = useMailbox();
 const { success, error: toastError, warning } = useToast();
@@ -22,6 +22,9 @@ const creating = ref(false);
 const customOpen = ref(false);
 const selectedMessageId = ref<string | null>(null);
 const confirmDelete = ref(false);
+const publicConfig = ref<PublicConfig | null>(null);
+const maintenance = computed(() => publicConfig.value?.features.mailboxCreate === false);
+const customNameEnabled = computed(() => publicConfig.value?.features.customName !== false);
 
 const inbox = useInbox({
   session,
@@ -52,6 +55,7 @@ watch(expired, (e) => {
 });
 
 async function ensureSession() {
+  if (maintenance.value) return;
   if (expired.value) {
     creating.value = true;
     try {
@@ -103,9 +107,10 @@ async function onConfirmDelete() {
 async function onSubmitCustom(name: string) {
   creating.value = true;
   try {
-    await create(name);
+    await create(name || undefined);
     customOpen.value = false;
-    success(`Created ${name}@${session.value?.address.split('@')[1]}`);
+    const domain = session.value?.address.split('@')[1] ?? '';
+    success(name ? `Created ${name}@${domain}` : 'Created a new mailbox');
     await inbox.refresh();
   } catch (e) {
     if (e instanceof ApiClientError && e.status === 409) toastError('That name is already taken');
@@ -121,6 +126,11 @@ function onOpenMessage(id: string) {
 }
 
 onMounted(async () => {
+  try {
+    publicConfig.value = await getPublicConfig();
+  } catch {
+    /* lỗi config → mặc định các cờ đều bật */
+  }
   // title/favicon do watch immediate ở trên sở hữu — không set lại ở đây
   await ensureSession();
   inbox.start();
@@ -137,10 +147,16 @@ onUnmounted(() => inbox.stop());
 
     <div class="layout">
       <div class="layout__side">
+        <div v-if="maintenance" class="maintenance card">
+          <MdiIcon :path="mdiAlertCircleOutline" :size="20" />
+          <p>Trang đang bảo trì — tạm ngưng tạo mailbox mới.</p>
+        </div>
+
         <AddressCard
           v-if="session"
           :session="session"
           :remaining-ms="remainingMs"
+          :custom-name-enabled="customNameEnabled"
           @copy="onCopy"
           @extend="onExtend"
           @remove="onRemove"
@@ -149,7 +165,7 @@ onUnmounted(() => inbox.stop());
 
         <div v-if="expired" class="expired card">
           <p>This mailbox has expired.</p>
-          <button class="expired__cta" :disabled="creating" @click="ensureSession">
+          <button class="expired__cta" :disabled="creating || maintenance" @click="ensureSession">
             <MdiIcon :path="mdiCheckBold" :size="18" /> {{ creating ? 'Creating…' : 'Create a new address' }}
           </button>
         </div>
@@ -168,7 +184,7 @@ onUnmounted(() => inbox.stop());
     </div>
 
     <MessageModal :open="!!selectedMessageId" :message-id="selectedMessageId" :session="session" @close="selectedMessageId = null" />
-    <NewAddressModal :open="customOpen" :loading="creating" @close="customOpen = false" @submit="onSubmitCustom" />
+    <NewAddressModal :open="customOpen" :loading="creating" :custom-name-enabled="customNameEnabled" @close="customOpen = false" @submit="onSubmitCustom" />
     <ConfirmDialog
       :open="confirmDelete"
       title="Delete mailbox"
@@ -199,6 +215,12 @@ onUnmounted(() => inbox.stop());
   background: var(--accent); color: #fff; padding: 0 16px; border-radius: 8px; font-weight: 600;
 }
 .expired__cta:disabled { opacity: 0.6; cursor: not-allowed; }
+.maintenance {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px; padding: 14px 16px;
+  color: var(--warning);
+}
+.maintenance p { margin: 0; }
 
 /* 2-column layout on desktop: address card pinned left, inbox right */
 @media (min-width: 960px) {
