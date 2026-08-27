@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ref } from 'vue';
 import MdiIcon from '../components/MdiIcon.vue';
-import { mdiViewDashboard, mdiEmail, mdiEmailMultiple, mdiShieldAlert, mdiCog, mdiMenu, mdiRefresh } from '@mdi/js';
+import { mdiViewDashboard, mdiEmail, mdiEmailMultiple, mdiShieldAlert, mdiCog, mdiMenu, mdiRefresh, mdiLogout } from '@mdi/js';
 import OverviewView from './views/OverviewView.vue';
 import MailboxView from './views/MailboxView.vue';
 import MessagesView from './views/MessagesView.vue';
 import AbuseView from './views/AbuseView.vue';
 import ConfigView from './views/ConfigView.vue';
+import AdminLogin from './AdminLogin.vue';
+import { adminSession } from './session';
+import { adminApi } from '../api/admin';
 import '../styles/admin.css';
 
 type ViewKey = 'overview' | 'mailboxes' | 'messages' | 'abuse' | 'config';
@@ -30,7 +33,8 @@ function select(key: ViewKey) {
 </script>
 
 <template>
-  <div class="admin-shell">
+  <AdminLogin v-if="adminSession === null" />
+  <div v-else class="admin-shell">
     <header class="admin-topbar">
       <button class="admin-topbar__menu" aria-label="Mở menu" @click="sidebarOpen = !sidebarOpen">
         <MdiIcon :path="mdiMenu" :size="22" />
@@ -39,6 +43,9 @@ function select(key: ViewKey) {
       <span class="admin-topbar__spacer"></span>
       <button class="btn-icon" aria-label="Làm mới dữ liệu" title="Làm mới" @click="refreshTick++">
         <MdiIcon :path="mdiRefresh" :size="20" />
+      </button>
+      <button class="btn-icon" aria-label="Đăng xuất" title="Đăng xuất" @click="adminApi.logout()">
+        <MdiIcon :path="mdiLogout" :size="20" />
       </button>
     </header>
 

@@ -13,9 +13,11 @@ vi.mock('chart.js', () => ({
 }));
 
 import AdminApp from './AdminApp.vue';
+import { setAdminToken } from './session';
 
 describe('AdminApp', () => {
   beforeEach(() => {
+    setAdminToken('test-session');
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
       new Response(JSON.stringify({ domain: 'toolviet.net', recaptchaEnabled: true, devBypassEnabled: false }), { status: 200 }),
@@ -42,5 +44,11 @@ describe('AdminApp', () => {
     await navButtons[1].trigger('click');
     expect(wrapper.find('.admin-view h2').text()).toBe('Mailbox');
     expect(navButtons[1].classes()).toContain('admin-nav__item--active');
+  });
+
+  it('hiển thị màn hình đăng nhập khi chưa có session', () => {
+    setAdminToken(null);
+    const wrapper = mount(AdminApp);
+    expect(wrapper.text()).toContain('Khóa quản trị');
   });
 });

@@ -1,6 +1,5 @@
 export interface Env {
-  ACCESS_TEAM_DOMAIN?: string;
-  ACCESS_APP_AUD?: string;
+  ADMIN_API_KEY?: string;
   ADMIN_DEV_BYPASS?: string;
   DB: D1Database;
   ASSETS: Fetcher;

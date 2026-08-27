@@ -1,10 +1,24 @@
 import { Hono } from 'hono';
 import type { Context } from 'hono';
 import { requireAdmin } from '../lib/auth';
+import { ApiError } from '../lib/errors';
+import { createAdminSession, constantTimeEqual } from '../lib/admin-session';
 import { getAdminOverview, getStatsSeries, getTopSenders, getTopIpHashes, listMailboxes, listRecentMessages, listEvents } from '../db/queries';
 import type { AdminEventType, Env } from '../env';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
+
+adminRoutes.post('/login', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { apiKey?: unknown };
+  const apiKey = c.env.ADMIN_API_KEY;
+  if (!apiKey) throw new ApiError(401, 'UNAUTHORIZED', 'Admin auth not configured');
+  const nowMs = Date.now();
+  if (typeof body.apiKey !== 'string' || !constantTimeEqual(body.apiKey, apiKey)) {
+    throw new ApiError(401, 'UNAUTHORIZED', 'Invalid credentials');
+  }
+  const { token, expiresAt } = await createAdminSession(apiKey, nowMs);
+  return c.json({ token, expiresAt, serverTime: nowMs });
+});
 
 adminRoutes.use('*', requireAdmin);
 

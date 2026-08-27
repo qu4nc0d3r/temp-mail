@@ -15,7 +15,9 @@ export default defineConfig(async () => {
             RECAPTCHA_SECRET_KEY: '',
             RECAPTCHA_SITE_KEY: 'test-site-key',
             RECAPTCHA_THRESHOLD: '0.5',
-            // Cho phép test admin qua SELF mà không cần CF Access thật.
+            // Khóa admin test — login route không bypass và dùng key này.
+            ADMIN_API_KEY: 'test-admin-api-key',
+            // Cho phép test admin qua SELF mà không cần đăng nhập thật.
             ADMIN_DEV_BYPASS: 'true',
           },
         },

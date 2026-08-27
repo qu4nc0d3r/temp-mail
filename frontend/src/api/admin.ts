@@ -1,4 +1,5 @@
-import { api } from './client';
+import { api, ApiClientError } from './client';
+import { adminSession, setAdminToken } from '../admin/session';
 
 export interface AdminOverview {
   activeMailboxes: number;
@@ -38,14 +39,33 @@ export interface AdminMessagesResponse extends Paged { messages: AdminMessageRow
 export interface AdminEventsResponse extends Paged { events: AdminEventRow[] }
 export interface AdminConfig { domain: string; recaptchaEnabled: boolean; devBypassEnabled: boolean }
 
+async function guard<T>(p: Promise<T>): Promise<T> {
+  try {
+    return await p;
+  } catch (e) {
+    // Session hết hạn/sai → quay về màn hình đăng nhập.
+    if (e instanceof ApiClientError && e.status === 401) setAdminToken(null);
+    throw e;
+  }
+}
+
 export const adminApi = {
-  overview: () => api.get<AdminOverview>('/api/admin/overview'),
-  stats: (range: '24h' | '7d') => api.get<{ range: string; points: StatsPoint[] }>(`/api/admin/stats?range=${range}`),
+  login: async (apiKey: string) => {
+    const res = await api.post<{ token: string; expiresAt: number; serverTime: number }>('/api/admin/login', { apiKey });
+    setAdminToken(res.token);
+    return res;
+  },
+  logout: () => setAdminToken(null),
+  overview: () => guard(api.get<AdminOverview>('/api/admin/overview', { token: adminSession.value })),
+  stats: (range: '24h' | '7d') =>
+    guard(api.get<{ range: string; points: StatsPoint[] }>(`/api/admin/stats?range=${range}`, { token: adminSession.value })),
   top: (by: 'senders' | 'ips', limit = 10) =>
-    api.get<{ by: string; items: { label: string; count: number }[] }>(`/api/admin/top?by=${by}&limit=${limit}`),
+    guard(api.get<{ by: string; items: { label: string; count: number }[] }>(`/api/admin/top?by=${by}&limit=${limit}`, { token: adminSession.value })),
   events: (type: string | null, limit = 20, offset = 0) =>
-    api.get<AdminEventsResponse>(`/api/admin/events?${type ? `type=${type}&` : ''}limit=${limit}&offset=${offset}`),
-  mailboxes: (limit = 20, offset = 0) => api.get<AdminMailboxesResponse>(`/api/admin/mailboxes?limit=${limit}&offset=${offset}`),
-  messages: (limit = 20, offset = 0) => api.get<AdminMessagesResponse>(`/api/admin/messages?limit=${limit}&offset=${offset}`),
-  config: () => api.get<AdminConfig>('/api/admin/config'),
+    guard(api.get<AdminEventsResponse>(`/api/admin/events?${type ? `type=${type}&` : ''}limit=${limit}&offset=${offset}`, { token: adminSession.value })),
+  mailboxes: (limit = 20, offset = 0) =>
+    guard(api.get<AdminMailboxesResponse>(`/api/admin/mailboxes?limit=${limit}&offset=${offset}`, { token: adminSession.value })),
+  messages: (limit = 20, offset = 0) =>
+    guard(api.get<AdminMessagesResponse>(`/api/admin/messages?limit=${limit}&offset=${offset}`, { token: adminSession.value })),
+  config: () => guard(api.get<AdminConfig>('/api/admin/config', { token: adminSession.value })),
 };
