@@ -59,6 +59,7 @@ body.admin #app {
 .admin-main { padding: 24px; min-width: 0; }
 
 .admin-grid { display: grid; gap: 20px; }
+.admin-grid--stats { margin-bottom: 20px; }
 @media (min-width: 1200px) {
   .admin-grid--stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
