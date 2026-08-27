@@ -4,7 +4,7 @@ import { SELF, env } from 'cloudflare:test';
 import { setupDb } from './helpers/db';
 import { requireAdmin } from '../src/lib/auth';
 import { errorHandler } from '../src/lib/errors';
-import { createMailbox, insertMessage, logEvent } from '../src/db/queries';
+import { createMailbox, insertMessage, logEvent, setSetting } from '../src/db/queries';
 import { createAdminSession } from '../src/lib/admin-session';
 import type { AdminEventRow, AdminMailboxRow, AdminMessageRow, AdminOverview, Env, StatsPoint } from '../src/env';
 
@@ -86,12 +86,62 @@ describe('POST /api/admin/login', () => {
 });
 
 describe('GET /api/admin/config', () => {
-  it('returns read-only config via SELF (bypass mode in tests)', async () => {
+  it('returns config with feature flags via SELF (bypass mode in tests)', async () => {
     const res = await SELF.fetch('https://example.com/api/admin/config');
     expect(res.status).toBe(200);
-    const body = await res.json<{ domain: string; recaptchaEnabled: boolean; devBypassEnabled: boolean }>();
+    const body = await res.json<{ domain: string; devBypassEnabled: boolean; features: { key: string; enabled: boolean; isDefault: boolean }[] }>();
     expect(body.domain).toBe(env.DOMAIN);
     expect(body.devBypassEnabled).toBe(true);
+    expect(body.features).toHaveLength(4);
+    expect(body.features.find((f) => f.key === 'mailbox_create')).toEqual({ key: 'mailbox_create', enabled: true, isDefault: true });
+  });
+});
+
+describe('PUT/DELETE /api/admin/config/features', () => {
+  it('toggles a feature and records a config_changed event', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/config/features', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'rate_limit', enabled: false }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ features: { key: string; enabled: boolean; isDefault: boolean }[] }>();
+    expect(body.features.find((f) => f.key === 'rate_limit')).toEqual({ key: 'rate_limit', enabled: false, isDefault: false });
+
+    const rows = await env.DB.prepare(`SELECT * FROM admin_events WHERE type = 'config_changed'`).all<{ detail: string }>();
+    expect(rows.results).toHaveLength(1);
+    expect(rows.results[0].detail).toBe('rate_limit=off');
+
+    const cfg = await (await SELF.fetch('https://example.com/api/admin/config')).json<{ features: { key: string; enabled: boolean; isDefault: boolean }[] }>();
+    expect(cfg.features.find((f) => f.key === 'rate_limit')?.enabled).toBe(false);
+  });
+
+  it('rejects an unknown key with 400 INVALID_KEY', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/config/features', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'nope', enabled: true }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json<{ error: { code: string } }>()).error.code).toBe('INVALID_KEY');
+  });
+
+  it('rejects a non-boolean enabled value with 400 INVALID_VALUE', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/config/features', {
+      method: 'PUT',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ key: 'rate_limit', enabled: 'yes' }),
+    });
+    expect(res.status).toBe(400);
+    expect((await res.json<{ error: { code: string } }>()).error.code).toBe('INVALID_VALUE');
+  });
+
+  it('resets a feature back to default', async () => {
+    await setSetting(env.DB, 'feature.custom_name', '0');
+    const res = await SELF.fetch('https://example.com/api/admin/config/features/custom_name', { method: 'DELETE' });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ features: { key: string; enabled: boolean; isDefault: boolean }[] }>();
+    expect(body.features.find((f) => f.key === 'custom_name')).toEqual({ key: 'custom_name', enabled: true, isDefault: true });
   });
 });
 

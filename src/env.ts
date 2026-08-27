@@ -11,7 +11,7 @@ export interface Env {
   RECAPTCHA_THRESHOLD?: string;
 }
 
-export type AdminEventType = 'mailbox_created' | 'rate_limited' | 'recaptcha_failed' | 'cron_cleanup';
+export type AdminEventType = 'mailbox_created' | 'rate_limited' | 'recaptcha_failed' | 'cron_cleanup' | 'config_changed';
 
 export interface AdminEventRow {
   id: number;

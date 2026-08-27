@@ -3,7 +3,8 @@ import type { Context } from 'hono';
 import { requireAdmin } from '../lib/auth';
 import { ApiError } from '../lib/errors';
 import { createAdminSession, constantTimeEqual } from '../lib/admin-session';
-import { getAdminOverview, getStatsSeries, getTopSenders, getTopIpHashes, listMailboxes, listRecentMessages, listEvents } from '../db/queries';
+import { getAdminOverview, getStatsSeries, getTopSenders, getTopIpHashes, listMailboxes, listRecentMessages, listEvents, logEvent, setSetting, deleteSetting } from '../db/queries';
+import { resolveFeatureFlags, FEATURE_KEYS, type FeatureKey } from '../lib/features';
 import type { AdminEventType, Env } from '../env';
 
 export const adminRoutes = new Hono<{ Bindings: Env }>();
@@ -35,12 +36,38 @@ function parsePaging(c: Context<{ Bindings: Env }>): { limit: number; offset: nu
   return { limit, offset };
 }
 
-adminRoutes.get('/config', (c) => {
+adminRoutes.get('/config', async (c) => {
+  const features = await resolveFeatureFlags(c.env.DB, c.env);
   return c.json({
     domain: c.env.DOMAIN,
-    recaptchaEnabled: Boolean(c.env.RECAPTCHA_SECRET_KEY && c.env.RECAPTCHA_SITE_KEY),
     devBypassEnabled: c.env.ADMIN_DEV_BYPASS === 'true',
+    features,
   });
+});
+
+adminRoutes.put('/config/features', async (c) => {
+  const body = (await c.req.json().catch(() => ({}))) as { key?: unknown; enabled?: unknown };
+  if (typeof body.key !== 'string' || !(FEATURE_KEYS as readonly string[]).includes(body.key)) {
+    throw new ApiError(400, 'INVALID_KEY', 'Unknown feature key');
+  }
+  if (typeof body.enabled !== 'boolean') {
+    throw new ApiError(400, 'INVALID_VALUE', 'enabled must be a boolean');
+  }
+  const key = body.key as FeatureKey;
+  await setSetting(c.env.DB, `feature.${key}`, body.enabled ? '1' : '0');
+  await logEvent(c.env.DB, { type: 'config_changed', detail: `${key}=${body.enabled ? 'on' : 'off'}` });
+  return c.json({ features: await resolveFeatureFlags(c.env.DB, c.env) });
+});
+
+adminRoutes.delete('/config/features/:key', async (c) => {
+  const raw = c.req.param('key');
+  if (!(FEATURE_KEYS as readonly string[]).includes(raw)) {
+    throw new ApiError(400, 'INVALID_KEY', 'Unknown feature key');
+  }
+  const key = raw as FeatureKey;
+  await deleteSetting(c.env.DB, `feature.${key}`);
+  await logEvent(c.env.DB, { type: 'config_changed', detail: `${key}=default` });
+  return c.json({ features: await resolveFeatureFlags(c.env.DB, c.env) });
 });
 
 adminRoutes.get('/overview', async (c) => {
@@ -55,7 +82,7 @@ adminRoutes.get('/stats', async (c) => {
   return c.json({ range: is7d ? '7d' : '24h', points });
 });
 
-const EVENT_TYPES: readonly string[] = ['mailbox_created', 'rate_limited', 'recaptcha_failed', 'cron_cleanup'];
+const EVENT_TYPES: readonly string[] = ['mailbox_created', 'rate_limited', 'recaptcha_failed', 'cron_cleanup', 'config_changed'];
 
 adminRoutes.get('/top', async (c) => {
   const by = c.req.query('by') === 'ips' ? 'ips' : 'senders';
