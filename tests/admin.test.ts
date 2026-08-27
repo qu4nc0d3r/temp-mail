@@ -5,6 +5,7 @@ import { setupDb } from './helpers/db';
 import { requireAdmin } from '../src/lib/auth';
 import { errorHandler } from '../src/lib/errors';
 import { createMailbox, insertMessage, logEvent } from '../src/db/queries';
+import { createAdminSession } from '../src/lib/admin-session';
 import type { AdminEventRow, AdminMailboxRow, AdminMessageRow, AdminOverview, Env, StatsPoint } from '../src/env';
 
 beforeEach(async () => {
@@ -23,25 +24,63 @@ function makeAdminApp(overrides: Partial<Env>): Hono<{ Bindings: Env }> {
 }
 
 describe('requireAdmin middleware', () => {
-  it('rejects when bypass off and no token', async () => {
+  it('rejects when bypass off and no bearer token', async () => {
     const app = makeAdminApp({});
     const res = await app.request('/ping', {}, { ...env, ADMIN_DEV_BYPASS: undefined });
     expect(res.status).toBe(401);
   });
 
-  it('rejects when bypass off and ACCESS vars not configured', async () => {
+  it('rejects when bypass off and ADMIN_API_KEY not configured', async () => {
     const app = makeAdminApp({});
-    const res = await app.request('/ping', { headers: { 'cf-access-jwt-assertion': 'x.y.z' } }, { ...env, ADMIN_DEV_BYPASS: undefined });
+    // env từ cloudflare:test đã có ADMIN_API_KEY (miniflare bindings) — phải override về undefined.
+    const res = await app.request('/ping', { headers: { authorization: 'Bearer x.y.z' } }, { ...env, ADMIN_DEV_BYPASS: undefined, ADMIN_API_KEY: undefined });
     expect(res.status).toBe(401);
   });
 
   it('rejects when bypass off and token is invalid', async () => {
     const app = makeAdminApp({});
-    const res = await app.request(
-      '/ping',
-      { headers: { 'cf-access-jwt-assertion': 'x.y.z' } },
-      { ...env, ADMIN_DEV_BYPASS: undefined, ACCESS_TEAM_DOMAIN: 'test.cloudflareaccess.com', ACCESS_APP_AUD: 'aud' },
-    );
+    const res = await app.request('/ping', { headers: { authorization: 'Bearer garbage.token.here' } }, { ...env, ADMIN_DEV_BYPASS: undefined, ADMIN_API_KEY: 'test-key' });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects when bypass off and session is expired', async () => {
+    const app = makeAdminApp({});
+    const { token } = await createAdminSession('test-key', Date.now() - 3 * 60 * 60 * 1000);
+    const res = await app.request('/ping', { headers: { authorization: `Bearer ${token}` } }, { ...env, ADMIN_DEV_BYPASS: undefined, ADMIN_API_KEY: 'test-key' });
+    expect(res.status).toBe(401);
+  });
+
+  it('accepts a valid session', async () => {
+    const app = makeAdminApp({});
+    const { token } = await createAdminSession('test-key', Date.now());
+    const res = await app.request('/ping', { headers: { authorization: `Bearer ${token}` } }, { ...env, ADMIN_DEV_BYPASS: undefined, ADMIN_API_KEY: 'test-key' });
+    expect(res.status).toBe(200);
+  });
+});
+
+describe('POST /api/admin/login', () => {
+  it('rejects wrong key', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apiKey: 'wrong' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('issues a session for the correct key', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apiKey: 'test-admin-api-key' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json<{ token: string; expiresAt: number }>();
+    expect(typeof body.token).toBe('string');
+    expect(body.token.split('.')).toHaveLength(2);
+    expect(body.expiresAt).toBeGreaterThan(Date.now());
+  });
+
+  it('rejects non-string or empty key body', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/login', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ apiKey: 123 }),
+    });
     expect(res.status).toBe(401);
   });
 });
