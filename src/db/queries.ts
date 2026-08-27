@@ -261,3 +261,19 @@ export async function listEvents(
   ]);
   return { items: res.results, total: total?.c ?? 0 };
 }
+
+export async function getSettings(db: D1Database): Promise<Record<string, string>> {
+  const res = await db.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
+  return Object.fromEntries(res.results.map((r) => [r.key, r.value]));
+}
+
+export async function setSetting(db: D1Database, key: string, value: string, nowMs: number = Date.now()): Promise<void> {
+  await db
+    .prepare('INSERT INTO settings (key, value, updated_at) VALUES (?, ?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at')
+    .bind(key, value, nowMs)
+    .run();
+}
+
+export async function deleteSetting(db: D1Database, key: string): Promise<void> {
+  await db.prepare('DELETE FROM settings WHERE key = ?').bind(key).run();
+}

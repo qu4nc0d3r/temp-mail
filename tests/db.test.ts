@@ -4,6 +4,7 @@ import {
   createMailbox, getActiveMailbox, extendMailbox, deleteMailbox,
   listMessages, getMessage, insertMessage, cleanupExpired, checkAndRecordUsage,
   logEvent, pruneEvents, getAdminOverview, getStatsSeries,
+  getSettings, setSetting, deleteSetting,
 } from '../src/db/queries';
 import type { AdminEventRow, AdminOverview, StatsPoint } from '../src/env';
 
@@ -183,5 +184,20 @@ describe('admin overview & stats', () => {
     const last = points[points.length - 1];
     expect(last.t).toBe(Math.floor((NOW - 5 * 60 * 1000) / bucketMs) * bucketMs);
     expect(last.messages).toBe(1);
+  });
+});
+
+describe('settings', () => {
+  it('setSetting upserts and getSettings reads back', async () => {
+    await setSetting(db, 'feature.custom_name', '0');
+    expect(await getSettings(db)).toEqual({ 'feature.custom_name': '0' });
+    await setSetting(db, 'feature.custom_name', '1');
+    expect(await getSettings(db)).toEqual({ 'feature.custom_name': '1' });
+  });
+
+  it('deleteSetting removes a key', async () => {
+    await setSetting(db, 'feature.custom_name', '0');
+    await deleteSetting(db, 'feature.custom_name');
+    expect(await getSettings(db)).toEqual({});
   });
 });
