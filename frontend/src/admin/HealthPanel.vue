@@ -6,6 +6,7 @@ import type { AdminOverview, AdminConfig } from '../api/admin';
 const props = defineProps<{ overview: AdminOverview | null; config: AdminConfig | null }>();
 
 const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN(props.overview.lastCronRunAt) : 'Chưa có dữ liệu'));
+const recaptchaOn = computed(() => props.config?.features?.find((f) => f.key === 'recaptcha')?.enabled === true);
 </script>
 
 <template>
@@ -19,7 +20,7 @@ const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN
       <div><dt>Mailbox đã dọn</dt><dd>{{ overview?.lastCronCleanup?.deletedMailboxes ?? '—' }}</dd></div>
       <div><dt>Messages đã dọn</dt><dd>{{ overview?.lastCronCleanup?.deletedMessages ?? '—' }}</dd></div>
       <div><dt>Domain</dt><dd>{{ config?.domain ?? '—' }}</dd></div>
-      <div><dt>reCAPTCHA</dt><dd>{{ config?.recaptchaEnabled ? 'Bật' : 'Tắt' }}</dd></div>
+      <div><dt>reCAPTCHA</dt><dd>{{ recaptchaOn ? 'Bật' : 'Tắt' }}</dd></div>
     </dl>
   </section>
 </template>

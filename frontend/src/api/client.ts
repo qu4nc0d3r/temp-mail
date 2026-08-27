@@ -43,5 +43,39 @@ async function request<T>(method: string, path: string, options: RequestOptions 
 export const api = {
   get: <T>(path: string, options?: RequestOptions) => request<T>('GET', path, options),
   post: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('POST', path, { ...options, body }),
+  put: <T>(path: string, body?: unknown, options?: RequestOptions) => request<T>('PUT', path, { ...options, body }),
   del: <T>(path: string, options?: RequestOptions) => request<T>('DELETE', path, options),
 };
+
+export interface PublicConfig {
+  recaptchaSiteKey: string;
+  features: { customName: boolean; mailboxCreate: boolean };
+}
+
+export function normalizePublicConfig(raw: { recaptchaSiteKey?: string; features?: Partial<{ customName: boolean; mailboxCreate: boolean }> }): PublicConfig {
+  return {
+    recaptchaSiteKey: raw.recaptchaSiteKey ?? '',
+    features: {
+      customName: raw.features?.customName !== false,
+      mailboxCreate: raw.features?.mailboxCreate !== false,
+    },
+  };
+}
+
+let publicConfigCache: Promise<PublicConfig> | null = null;
+
+export function getPublicConfig(): Promise<PublicConfig> {
+  if (!publicConfigCache) {
+    publicConfigCache = api.get<{ recaptchaSiteKey?: string; features?: Partial<{ customName: boolean; mailboxCreate: boolean }> }>('/api/config')
+      .then(normalizePublicConfig)
+      .catch((e) => {
+        publicConfigCache = null;
+        throw e;
+      });
+  }
+  return publicConfigCache;
+}
+
+export function resetPublicConfigCache(): void {
+  publicConfigCache = null;
+}

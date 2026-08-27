@@ -37,7 +37,9 @@ export interface Paged { total: number; limit: number; offset: number }
 export interface AdminMailboxesResponse extends Paged { mailboxes: AdminMailboxRow[] }
 export interface AdminMessagesResponse extends Paged { messages: AdminMessageRow[] }
 export interface AdminEventsResponse extends Paged { events: AdminEventRow[] }
-export interface AdminConfig { domain: string; recaptchaEnabled: boolean; devBypassEnabled: boolean }
+export type FeatureKey = 'recaptcha' | 'mailbox_create' | 'rate_limit' | 'custom_name';
+export interface AdminFeature { key: FeatureKey; enabled: boolean; isDefault: boolean }
+export interface AdminConfig { domain: string; devBypassEnabled: boolean; features: AdminFeature[] }
 
 async function guard<T>(p: Promise<T>): Promise<T> {
   try {
@@ -68,4 +70,8 @@ export const adminApi = {
   messages: (limit = 20, offset = 0) =>
     guard(api.get<AdminMessagesResponse>(`/api/admin/messages?limit=${limit}&offset=${offset}`, { token: adminSession.value })),
   config: () => guard(api.get<AdminConfig>('/api/admin/config', { token: adminSession.value })),
+  updateFeature: (key: FeatureKey, enabled: boolean) =>
+    guard(api.put<{ features: AdminFeature[] }>('/api/admin/config/features', { key, enabled }, { token: adminSession.value })),
+  resetFeature: (key: FeatureKey) =>
+    guard(api.del<{ features: AdminFeature[] }>(`/api/admin/config/features/${key}`, { token: adminSession.value })),
 };

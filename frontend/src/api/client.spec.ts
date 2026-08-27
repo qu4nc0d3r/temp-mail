@@ -27,4 +27,14 @@ describe('api client', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('oops', { status: 500 }));
     await expect(api.get('/x')).rejects.toBeInstanceOf(ApiClientError);
   });
+
+  it('put sends the body as json', async () => {
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 }),
+    );
+    await api.put<{ ok: boolean }>('/api/admin/config/features', { key: 'rate_limit', enabled: false });
+    const [, init] = fetchMock.mock.calls[0];
+    expect(init!.method).toBe('PUT');
+    expect(JSON.parse(init!.body as string)).toEqual({ key: 'rate_limit', enabled: false });
+  });
 });
