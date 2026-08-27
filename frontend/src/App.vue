@@ -7,6 +7,7 @@ import InboxList from './components/InboxList.vue';
 import MessageModal from './components/MessageModal.vue';
 import NewAddressModal from './components/NewAddressModal.vue';
 import ConfirmDialog from './components/ConfirmDialog.vue';
+import FooterNotice from './components/FooterNotice.vue';
 import { useMailbox } from './composables/useMailbox';
 import { useInbox } from './composables/useInbox';
 import { useToast } from './composables/useToast';
@@ -193,6 +194,7 @@ onUnmounted(() => inbox.stop());
       @cancel="confirmDelete = false"
     />
     <ToastContainer />
+    <FooterNotice />
   </main>
 </template>
 

@@ -209,4 +209,22 @@ describe('App', () => {
     expect(createCall).toBeUndefined();
     wrapper.unmount();
   });
+
+  it('shows the footer legal disclaimer', async () => {
+    globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
+      address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,
+    }));
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '6Lc-test' }), { status: 200 });
+      }
+      return new Response(JSON.stringify({ messages: [] }), { status: 200 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.text()).toContain('Nghiêm cấm sử dụng dịch vụ cho bất kỳ hoạt động bất hợp pháp');
+    expect(wrapper.text()).toContain('Điều khoản sử dụng & Miễn trừ trách nhiệm');
+    wrapper.unmount();
+  });
 });
