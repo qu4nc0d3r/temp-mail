@@ -3,6 +3,7 @@ import { SELF, env as testEnv } from 'cloudflare:test';
 import { verifyRecaptcha, parseThreshold } from '../src/lib/recaptcha';
 import worker from '../src/index';
 import { setupDb } from './helpers/db';
+import { setSetting } from '../src/db/queries';
 import type { Env } from '../src/env';
 
 const SITE_VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
@@ -130,6 +131,19 @@ describe('route wiring', () => {
   it('creates the mailbox when the recaptcha token is valid', async () => {
     const res = await dispatch({ custom: 'bob', recaptchaToken: 'tok' });
     expect(res.status).toBe(201);
+  });
+
+  it('skips recaptcha verification when the feature flag is off', async () => {
+    await setSetting(testEnv.DB, 'feature.recaptcha', '0');
+    const res = await dispatch({});
+    expect(res.status).toBe(201);
+  });
+
+  it('rejects invalid recaptcha when the feature flag is on', async () => {
+    await setSetting(testEnv.DB, 'feature.recaptcha', '1');
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify({ success: false }), { status: 200 })));
+    const res = await dispatch({ recaptchaToken: 'tok' });
+    expect(res.status).toBe(403);
   });
 });
 

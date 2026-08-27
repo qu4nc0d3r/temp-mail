@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SELF, env } from 'cloudflare:test';
 import { setupDb } from './helpers/db';
-import { logEvent } from '../src/db/queries';
+import { logEvent, setSetting } from '../src/db/queries';
 
 const DOMAIN = env.DOMAIN;
 
@@ -96,5 +96,43 @@ describe('admin_events instrumentation', () => {
     await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
     const rows = await env.DB.prepare(`SELECT * FROM admin_events WHERE type = 'rate_limited'`).all();
     expect(rows.results.length).toBe(1);
+  });
+});
+
+describe('feature flag enforcement', () => {
+  it('blocks creation when mailbox_create is off (maintenance)', async () => {
+    await setSetting(env.DB, 'feature.mailbox_create', '0');
+    const res = await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+    expect(res.status).toBe(403);
+    expect((await res.json<{ error: { code: string } }>()).error.code).toBe('MAINTENANCE');
+  });
+
+  it('still allows reading an existing mailbox during maintenance', async () => {
+    const created = await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+    const { address, token } = await created.json<{ address: string; token: string }>();
+    await setSetting(env.DB, 'feature.mailbox_create', '0');
+    const res = await SELF.fetch(`https://example.com/api/mailbox/${encodeURIComponent(address)}/messages`, {
+      headers: { authorization: `Bearer ${token}` },
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('skips rate limiting when rate_limit is off', async () => {
+    await setSetting(env.DB, 'feature.rate_limit', '0');
+    for (let i = 0; i < 21; i++) {
+      const r = await SELF.fetch('https://example.com/api/mailbox', { method: 'POST' });
+      expect(r.status).toBe(201);
+    }
+  });
+
+  it('rejects custom name when custom_name is off', async () => {
+    await setSetting(env.DB, 'feature.custom_name', '0');
+    const res = await SELF.fetch('https://example.com/api/mailbox', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ custom: 'john' }),
+    });
+    expect(res.status).toBe(403);
+    expect((await res.json<{ error: { code: string } }>()).error.code).toBe('CUSTOM_NAME_DISABLED');
   });
 });

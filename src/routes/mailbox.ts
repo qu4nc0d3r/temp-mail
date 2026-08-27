@@ -8,6 +8,7 @@ import {
 import { generateToken, hashToken, hashIp } from '../lib/token';
 import { validateLocalPart } from '../lib/validate';
 import { verifyRecaptcha } from '../lib/recaptcha';
+import { resolveFeatureFlags, type FeatureKey } from '../lib/features';
 import type { Env } from '../env';
 
 const TTL_MS = 10 * 60 * 1000;
@@ -21,19 +22,33 @@ mailboxRoutes.post('/', async (c) => {
 
   const ipHash = await hashIp(ip, c.env.SALT_IP);
 
+  const flags = await resolveFeatureFlags(c.env.DB, c.env);
+  const flagOn = (key: FeatureKey) => flags.find((f) => f.key === key)!.enabled;
+
+  if (!flagOn('mailbox_create')) {
+    throw new ApiError(403, 'MAINTENANCE', 'Tạm ngưng tạo mailbox mới');
+  }
+
   const body = (await c.req.json().catch(() => ({}))) as { custom?: unknown; recaptchaToken?: unknown };
   const recaptchaToken = typeof body.recaptchaToken === 'string' ? body.recaptchaToken : '';
-  const verified = await verifyRecaptcha(c.env, recaptchaToken, ip);
+  const verified = flagOn('recaptcha') ? await verifyRecaptcha(c.env, recaptchaToken, ip) : true;
   if (!verified) {
     await logEvent(c.env.DB, { type: 'recaptcha_failed', ipHash });
     throw new ApiError(403, 'RECAPTCHA_FAILED', 'Could not verify you are human');
   }
 
-  const allowed = await checkAndRecordUsage(c.env.DB, ipHash, nowMs);
-  if (!allowed) {
-    await logEvent(c.env.DB, { type: 'rate_limited', ipHash, detail: 'per_hour_limit' });
-    throw new ApiError(429, 'RATE_LIMITED', 'Too many mailboxes created this hour');
+  if (flagOn('rate_limit')) {
+    const allowed = await checkAndRecordUsage(c.env.DB, ipHash, nowMs);
+    if (!allowed) {
+      await logEvent(c.env.DB, { type: 'rate_limited', ipHash, detail: 'per_hour_limit' });
+      throw new ApiError(429, 'RATE_LIMITED', 'Too many mailboxes created this hour');
+    }
   }
+
+  if (body.custom !== undefined && !flagOn('custom_name')) {
+    throw new ApiError(403, 'CUSTOM_NAME_DISABLED', 'Tên tùy chỉnh đã bị tắt');
+  }
+
   let address: string;
 
   if (body.custom !== undefined) {
