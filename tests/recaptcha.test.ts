@@ -148,9 +148,25 @@ describe('route wiring', () => {
 });
 
 describe('GET /api/config', () => {
-  it('serves the recaptcha site key', async () => {
+  beforeEach(async () => {
+    await setupDb();
+  });
+
+  it('serves the site key and feature flags when recaptcha is enabled', async () => {
+    await setSetting(testEnv.DB, 'feature.recaptcha', '1');
     const res = await SELF.fetch('https://example.com/api/config');
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ recaptchaSiteKey: 'test-site-key' });
+    expect(await res.json()).toEqual({
+      recaptchaSiteKey: 'test-site-key',
+      features: { customName: true, mailboxCreate: true },
+    });
+  });
+
+  it('hides the site key when recaptcha is off', async () => {
+    const res = await SELF.fetch('https://example.com/api/config');
+    expect(await res.json()).toEqual({
+      recaptchaSiteKey: '',
+      features: { customName: true, mailboxCreate: true },
+    });
   });
 });
