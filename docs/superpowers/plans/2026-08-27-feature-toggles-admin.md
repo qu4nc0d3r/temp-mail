@@ -633,6 +633,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>"
 - Modify: `frontend/src/api/admin.ts`
 - Modify: `frontend/src/api/client.spec.ts`
 - Modify: `frontend/src/api/admin.spec.ts`
+- Modify: `frontend/src/admin/HealthPanel.vue` — fix consumer của `recaptchaEnabled` bị bỏ ở Task 3 (Ruling ghi trong ledger SDD): đọc recaptcha từ `features` một cách defensive.
 
 **Interfaces:**
 - Produces:
@@ -753,6 +754,27 @@ Thêm 2 method vào `adminApi` (sau `config:`):
   resetFeature: (key: FeatureKey) =>
     guard(api.del<{ features: AdminFeature[] }>(`/api/admin/config/features/${key}`, { token: adminSession.value })),
 ```
+
+- [ ] **Step 4b: Sửa `frontend/src/admin/HealthPanel.vue`** — `recaptchaEnabled` đã bị bỏ khỏi API ở Task 3; đọc từ `features` defensive (tránh vỡ mock cũ):
+
+```ts
+import { computed } from 'vue';
+import { formatDateTimeVN } from '../lib/format';
+import type { AdminOverview, AdminConfig } from '../api/admin';
+
+const props = defineProps<{ overview: AdminOverview | null; config: AdminConfig | null }>();
+
+const lastRun = computed(() => (props.overview?.lastCronRunAt ? formatDateTimeVN(props.overview.lastCronRunAt) : 'Chưa có dữ liệu'));
+const recaptchaOn = computed(() => props.config?.features?.find((f) => f.key === 'recaptcha')?.enabled === true);
+```
+
+Dòng template (dòng 22) đổi thành:
+
+```vue
+<div><dt>reCAPTCHA</dt><dd>{{ recaptchaOn ? 'Bật' : 'Tắt' }}</dd></div>
+```
+
+(Thêm test cho `OverviewView.spec.ts` nếu nó render HealthPanel — mặc định mock `/config` shape cũ không có `features` → `recaptchaOn` fallback `false`, không vỡ.)
 
 - [ ] **Step 5: Chạy test frontend**
 
