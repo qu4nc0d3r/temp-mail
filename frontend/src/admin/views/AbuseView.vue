@@ -67,6 +67,7 @@ const columns: Column[] = [
           <option :value="null">Tất cả</option>
           <option value="rate_limited">rate_limited</option>
           <option value="recaptcha_failed">recaptcha_failed</option>
+          <option value="config_changed">config_changed</option>
         </select>
       </div>
       <div v-if="events.error.value" class="admin-error">Không tải được dữ liệu: {{ events.error.value }}</div>

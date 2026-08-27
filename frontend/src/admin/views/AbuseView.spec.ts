@@ -41,6 +41,13 @@ describe('AbuseView', () => {
     expect(wrapper.text()).toContain('rate_limited');
   });
 
+  it('includes config_changed in the event type filter', async () => {
+    const wrapper = mount(AbuseView, { props: { refreshTick: 0 } });
+    await new Promise((r) => setTimeout(r, 20));
+    const options = wrapper.findAll('select option').map((o) => o.text());
+    expect(options).toContain('config_changed');
+  });
+
   it('filters events by type and refetches with the type param', async () => {
     const wrapper = mount(AbuseView, { props: { refreshTick: 0 } });
     await new Promise((r) => setTimeout(r, 20));
