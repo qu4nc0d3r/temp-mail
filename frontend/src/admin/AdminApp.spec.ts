@@ -20,7 +20,16 @@ describe('AdminApp', () => {
     setAdminToken('test-session');
     vi.restoreAllMocks();
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(JSON.stringify({ domain: 'toolviet.net', recaptchaEnabled: true, devBypassEnabled: false }), { status: 200 }),
+      new Response(JSON.stringify({
+        domain: 'toolviet.net',
+        devBypassEnabled: false,
+        features: [
+          { key: 'recaptcha', enabled: true, isDefault: true },
+          { key: 'mailbox_create', enabled: true, isDefault: true },
+          { key: 'rate_limit', enabled: true, isDefault: true },
+          { key: 'custom_name', enabled: true, isDefault: true },
+        ],
+      }), { status: 200 }),
     );
   });
 

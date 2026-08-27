@@ -73,9 +73,9 @@ describe('getRecaptchaToken', () => {
     await expect(pending).resolves.toBe('token-abc');
   });
 
-  it('throws when the site key is missing from /api/config', async () => {
+  it('returns an empty token when the site key is missing (recaptcha disabled)', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(JSON.stringify({ recaptchaSiteKey: '' }), { status: 200 }));
-    await expect(getRecaptchaToken()).rejects.toThrow(/not configured/);
+    await expect(getRecaptchaToken()).resolves.toBe('');
   });
 
   it('reuses a fresh cached token and re-executes after it expires', async () => {

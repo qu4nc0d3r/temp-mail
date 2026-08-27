@@ -58,7 +58,16 @@ function loadScript(key: string): Promise<void> {
 export async function getRecaptchaToken(): Promise<string> {
   if (cachedToken && Date.now() - cachedTokenAt < TOKEN_MAX_AGE_MS) return cachedToken;
 
-  const key = await fetchSiteKey();
+  let key: string;
+  try {
+    key = await fetchSiteKey();
+  } catch {
+    // Site key rỗng (recaptcha bị tắt từ admin) hoặc lỗi tải → không gửi token.
+    // Backend tự quyết định: cờ recaptcha tắt → bỏ qua; cờ bật → từ chối fail-closed.
+    return '';
+  }
+  if (!key) return '';
+
   if (!window.grecaptcha) await loadScript(key);
 
   const token = await new Promise<string>((resolve, reject) => {

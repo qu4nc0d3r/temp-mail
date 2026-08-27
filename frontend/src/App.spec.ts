@@ -44,6 +44,23 @@ describe('App', () => {
     wrapper.unmount();
   });
 
+  it('creates a mailbox when recaptcha is disabled (empty site key)', async () => {
+    const res = { address: 'abc@x.com', token: 't'.repeat(64), expiresAt: Date.now() + 600_000, serverTime: Date.now() };
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.includes('/api/config')) {
+        return new Response(JSON.stringify({ recaptchaSiteKey: '', features: { customName: true, mailboxCreate: true } }), { status: 200 });
+      }
+      return new Response(JSON.stringify(res), { status: 201 });
+    });
+    const wrapper = mount(App);
+    await new Promise((r) => setTimeout(r, 0));
+    expect(wrapper.text()).toContain('abc@x.com');
+    const createCall = fetchMock.mock.calls.find((c) => String(c[0]).includes('/api/mailbox') && c[1]?.method === 'POST');
+    expect(createCall).toBeDefined();
+    wrapper.unmount();
+  });
+
   it('deletes the mailbox through a confirm dialog', async () => {
     globalThis.localStorage.setItem('tempmail.session', JSON.stringify({
       address: 'z@x.com', token: 't', expiresAt: Date.now() + 600_000,

@@ -125,7 +125,7 @@ Các route GET/POST extend/DELETE mailbox hiện có **không đổi** — đún
 - `api/client.ts`: thêm `getPublicConfig()` → `GET /api/config` trả `{ recaptchaSiteKey, features }`. (Hiện `/api/config` chỉ được `lib/recaptcha.ts` gọi lazy để lấy site key.)
 - `App.vue`: fetch `getPublicConfig()` lúc mount (cache trong module/composable), truyền xuống. Khi `features.mailboxCreate === false` → hiện banner bảo trì + vô hiệu hóa nút tạo mới.
 - `NewAddressModal.vue`: thêm prop `customNameEnabled`; khi `false` ẩn ô nhập tên, submit trực tiếp với tên ngẫu nhiên.
-- `lib/recaptcha.ts`: **không sửa** — site key trả `''` khi cờ tắt là đủ.
+- `lib/recaptcha.ts`: `getRecaptchaToken` trả `''` khi site key rỗng (cờ recaptcha tắt) thay vì throw — backend tự quyết định theo cờ.
 
 ### 3.4 `AbuseView.vue`
 

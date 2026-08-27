@@ -30,7 +30,16 @@ describe('OverviewView', () => {
     fetchMock.mockImplementation(async (input: RequestInfo | URL) => {
       if (String(input).includes('/overview')) return new Response(JSON.stringify(overview), { status: 200 });
       if (String(input).includes('/stats')) return new Response(JSON.stringify({ range: '24h', points: [] }), { status: 200 });
-      if (String(input).includes('/config')) return new Response(JSON.stringify({ domain: 'toolviet.net', recaptchaEnabled: true, devBypassEnabled: false }), { status: 200 });
+      if (String(input).includes('/config')) return new Response(JSON.stringify({
+        domain: 'toolviet.net',
+        devBypassEnabled: false,
+        features: [
+          { key: 'recaptcha', enabled: true, isDefault: true },
+          { key: 'mailbox_create', enabled: true, isDefault: true },
+          { key: 'rate_limit', enabled: true, isDefault: true },
+          { key: 'custom_name', enabled: true, isDefault: true },
+        ],
+      }), { status: 200 });
       return new Response('{}', { status: 200 });
     });
   });
