@@ -3,7 +3,7 @@ import type { Context } from 'hono';
 import { requireAdmin } from '../lib/auth';
 import { ApiError } from '../lib/errors';
 import { createAdminSession, constantTimeEqual } from '../lib/admin-session';
-import { getAdminOverview, getStatsSeries, getTopSenders, getTopIpHashes, listMailboxes, listRecentMessages, listEvents, logEvent, setSetting, deleteSetting } from '../db/queries';
+import { getAdminOverview, getStatsSeries, getTopSenders, getTopIpHashes, listMailboxes, listRecentMessages, getAdminMessage, listEvents, logEvent, setSetting, deleteSetting } from '../db/queries';
 import { resolveFeatureFlags, FEATURE_KEYS, type FeatureKey } from '../lib/features';
 import type { AdminEventType, Env } from '../env';
 
@@ -108,8 +108,26 @@ adminRoutes.get('/mailboxes', async (c) => {
   return c.json({ mailboxes: data.items, total: data.total, limit, offset });
 });
 
+const MESSAGE_SORT_KEYS = ['received_at', 'from_addr', 'subject', 'mailbox'] as const;
+
 adminRoutes.get('/messages', async (c) => {
   const { limit, offset } = parsePaging(c);
-  const data = await listRecentMessages(c.env.DB, limit, offset);
+  const rawSort = c.req.query('sortBy');
+  const sortBy = rawSort && (MESSAGE_SORT_KEYS as readonly string[]).includes(rawSort) ? rawSort : 'received_at';
+  const order = c.req.query('order') === 'asc' ? 'asc' : 'desc';
+  const data = await listRecentMessages(c.env.DB, {
+    q: c.req.query('q'),
+    mailbox: c.req.query('mailbox'),
+    sortBy,
+    order,
+    limit,
+    offset,
+  });
   return c.json({ messages: data.items, total: data.total, limit, offset });
+});
+
+adminRoutes.get('/messages/:id', async (c) => {
+  const message = await getAdminMessage(c.env.DB, c.req.param('id'));
+  if (!message) throw new ApiError(404, 'NOT_FOUND', 'Message not found');
+  return c.json({ message });
 });

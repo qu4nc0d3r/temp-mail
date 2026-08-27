@@ -32,6 +32,20 @@ export interface AdminEventRow {
   id: number; type: string; ip_hash: string | null; address: string | null;
   detail: string | null; created_at: number;
 }
+export interface AdminMessageDetail extends AdminMessageRow {
+  html_body: string | null;
+  text_body: string | null;
+  attachments_count: number;
+}
+export type MessageSortKey = 'received_at' | 'from_addr' | 'subject' | 'mailbox';
+export interface AdminMessagesQuery {
+  q?: string;
+  mailbox?: string;
+  sortBy?: MessageSortKey;
+  order?: 'asc' | 'desc';
+  limit?: number;
+  offset?: number;
+}
 
 export interface Paged { total: number; limit: number; offset: number }
 export interface AdminMailboxesResponse extends Paged { mailboxes: AdminMailboxRow[] }
@@ -67,8 +81,19 @@ export const adminApi = {
     guard(api.get<AdminEventsResponse>(`/api/admin/events?${type ? `type=${type}&` : ''}limit=${limit}&offset=${offset}`, { token: adminSession.value })),
   mailboxes: (limit = 20, offset = 0) =>
     guard(api.get<AdminMailboxesResponse>(`/api/admin/mailboxes?limit=${limit}&offset=${offset}`, { token: adminSession.value })),
-  messages: (limit = 20, offset = 0) =>
-    guard(api.get<AdminMessagesResponse>(`/api/admin/messages?limit=${limit}&offset=${offset}`, { token: adminSession.value })),
+  messages: (query: AdminMessagesQuery = {}) => {
+    const params = new URLSearchParams();
+    if (query.q) params.set('q', query.q);
+    if (query.mailbox) params.set('mailbox', query.mailbox);
+    if (query.sortBy) params.set('sortBy', query.sortBy);
+    if (query.order) params.set('order', query.order);
+    if (query.limit !== undefined) params.set('limit', String(query.limit));
+    if (query.offset !== undefined) params.set('offset', String(query.offset));
+    const qs = params.toString();
+    return guard(api.get<AdminMessagesResponse>(`/api/admin/messages${qs ? `?${qs}` : ''}`, { token: adminSession.value }));
+  },
+  messageDetail: (id: string) =>
+    guard(api.get<{ message: AdminMessageDetail }>(`/api/admin/messages/${encodeURIComponent(id)}`, { token: adminSession.value })),
   config: () => guard(api.get<AdminConfig>('/api/admin/config', { token: adminSession.value })),
   updateFeature: (key: FeatureKey, enabled: boolean) =>
     guard(api.put<{ features: AdminFeature[] }>('/api/admin/config/features', { key, enabled }, { token: adminSession.value })),
