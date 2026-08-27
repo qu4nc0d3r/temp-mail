@@ -3,7 +3,7 @@ import AppModal from './AppModal.vue';
 import MdiIcon from './MdiIcon.vue';
 import { mdiTrashCanOutline } from '@mdi/js';
 
-defineProps<{ open: boolean; title?: string; message?: string }>();
+const props = defineProps<{ open: boolean; title?: string; message?: string; confirmText?: string; cancelText?: string }>();
 const emit = defineEmits<{ confirm: []; cancel: [] }>();
 </script>
 
@@ -11,9 +11,9 @@ const emit = defineEmits<{ confirm: []; cancel: [] }>();
   <AppModal :open="open" :title="title || 'Are you sure?'" size="sm" @close="emit('cancel')">
     <p v-if="message" class="confirm-msg">{{ message }}</p>
     <div class="confirm-actions">
-      <button class="ghost" @click="emit('cancel')">Keep</button>
+      <button class="ghost" @click="emit('cancel')">{{ props.cancelText || 'Keep' }}</button>
       <button class="danger" @click="emit('confirm')">
-        <MdiIcon :path="mdiTrashCanOutline" :size="18" /> Delete permanently
+        <MdiIcon :path="mdiTrashCanOutline" :size="18" /> {{ props.confirmText || 'Delete permanently' }}
       </button>
     </div>
   </AppModal>

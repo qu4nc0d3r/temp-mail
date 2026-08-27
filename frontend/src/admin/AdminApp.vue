@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import MdiIcon from '../components/MdiIcon.vue';
 import { mdiViewDashboard, mdiEmail, mdiEmailMultiple, mdiShieldAlert, mdiCog, mdiMenu, mdiRefresh, mdiLogout } from '@mdi/js';
+import ToastContainer from '../components/ToastContainer.vue';
 import OverviewView from './views/OverviewView.vue';
 import MailboxView from './views/MailboxView.vue';
 import MessagesView from './views/MessagesView.vue';
@@ -72,6 +73,7 @@ function select(key: ViewKey) {
         <MessagesView v-else-if="active === 'messages'" :refresh-tick="refreshTick" />
         <AbuseView v-else-if="active === 'abuse'" :refresh-tick="refreshTick" />
         <ConfigView v-else :refresh-tick="refreshTick" />
+        <ToastContainer />
       </main>
     </div>
   </div>
