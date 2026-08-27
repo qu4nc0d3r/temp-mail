@@ -239,12 +239,53 @@ export async function listMailboxes(db: D1Database, limit: number, offset: numbe
   return { items: res.results, total: total?.c ?? 0 };
 }
 
-export async function listRecentMessages(db: D1Database, limit: number, offset: number): Promise<{ items: AdminMessageRow[]; total: number }> {
+const MESSAGE_SORT_COLUMNS = ['received_at', 'from_addr', 'subject', 'mailbox'] as const;
+type MessageSortKey = (typeof MESSAGE_SORT_COLUMNS)[number];
+
+export interface ListRecentMessagesOptions {
+  q?: string | null;
+  mailbox?: string | null;
+  sortBy?: string;
+  order?: 'asc' | 'desc';
+  limit: number;
+  offset: number;
+}
+
+export async function listRecentMessages(db: D1Database, opts: ListRecentMessagesOptions): Promise<{ items: AdminMessageRow[]; total: number }> {
+  const q = opts.q?.trim() || null;
+  const mailbox = opts.mailbox?.trim() || null;
+  // Whitelist cột sort — giá trị này ghép thẳng vào SQL nên không được phép
+  // lọt tùy ý từ client (giống cách /events coerce type không hợp lệ về null).
+  const sortBy: MessageSortKey = MESSAGE_SORT_COLUMNS.includes(opts.sortBy as MessageSortKey) ? (opts.sortBy as MessageSortKey) : 'received_at';
+  const order = opts.order === 'asc' ? 'ASC' : 'DESC';
+
+  const where: string[] = [];
+  const params: unknown[] = [];
+  if (q) {
+    where.push('(from_addr LIKE ? OR from_name LIKE ? OR subject LIKE ? OR mailbox LIKE ? OR preview LIKE ?)');
+    const like = `%${q}%`;
+    params.push(like, like, like, like, like);
+  }
+  if (mailbox) {
+    where.push('mailbox = ?');
+    params.push(mailbox);
+  }
+  const whereSql = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+
   const [res, total] = await Promise.all([
-    db.prepare('SELECT id, mailbox, from_name, from_addr, subject, preview, received_at FROM messages ORDER BY received_at DESC, id DESC LIMIT ? OFFSET ?').bind(limit, offset).all<AdminMessageRow>(),
-    db.prepare('SELECT COUNT(*) AS c FROM messages').first<{ c: number }>(),
+    db.prepare(`SELECT id, mailbox, from_name, from_addr, subject, preview, received_at FROM messages${whereSql} ORDER BY ${sortBy} ${order}, id DESC LIMIT ? OFFSET ?`).bind(...params, opts.limit, opts.offset).all<AdminMessageRow>(),
+    db.prepare(`SELECT COUNT(*) AS c FROM messages${whereSql}`).bind(...params).first<{ c: number }>(),
   ]);
   return { items: res.results, total: total?.c ?? 0 };
+}
+
+export async function getAdminMessage(db: D1Database, id: string): Promise<MessageDetail | null> {
+  return (
+    (await db
+      .prepare('SELECT id, mailbox, from_name, from_addr, subject, preview, html_body, text_body, attachments_count, received_at FROM messages WHERE id = ?')
+      .bind(id)
+      .first<MessageDetail>()) ?? null
+  );
 }
 
 export async function listEvents(

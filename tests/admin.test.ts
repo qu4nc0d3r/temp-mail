@@ -215,3 +215,84 @@ describe('GET /api/admin lists', () => {
     expect(body.offset).toBe(0);
   });
 });
+
+describe('GET /api/admin/messages search/filter/sort', () => {
+  beforeEach(async () => {
+    await createMailbox(env.DB, `a@${env.DOMAIN}`, 'h', Date.now() - 1000, Date.now() + 60_000);
+    await insertMessage(env.DB, {
+      id: 'm1', mailbox: `a@${env.DOMAIN}`, fromName: 'Alice', fromAddr: 'alice@x.com',
+      subject: 'Hello', preview: 'preview 1', htmlBody: '<p>hello</p>', textBody: 'hello', attachmentsCount: 1, receivedAt: 1000,
+    });
+    await insertMessage(env.DB, {
+      id: 'm2', mailbox: `b@${env.DOMAIN}`, fromName: 'Bob', fromAddr: 'bob@x.com',
+      subject: 'Report', preview: 'preview 2', htmlBody: null, textBody: 'report', attachmentsCount: 0, receivedAt: 2000,
+    });
+    await insertMessage(env.DB, {
+      id: 'm3', mailbox: `a@${env.DOMAIN}`, fromName: 'Carol', fromAddr: 'carol@x.com',
+      subject: 'Advertise', preview: 'preview 3', htmlBody: null, textBody: 'spam', attachmentsCount: 0, receivedAt: 3000,
+    });
+  });
+
+  it('filters by q across sender/subject/mailbox', async () => {
+    const bySender = await (await SELF.fetch('https://example.com/api/admin/messages?q=alice')).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(bySender.total).toBe(1);
+    expect(bySender.messages[0].id).toBe('m1');
+
+    const bySubject = await (await SELF.fetch('https://example.com/api/admin/messages?q=report')).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(bySubject.total).toBe(1);
+    expect(bySubject.messages[0].id).toBe('m2');
+
+    const byMailbox = await (await SELF.fetch(`https://example.com/api/admin/messages?q=${encodeURIComponent(`a@${env.DOMAIN}`)}`)).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(byMailbox.total).toBe(2);
+    expect(byMailbox.messages.map((m) => m.id).sort()).toEqual(['m1', 'm3']);
+  });
+
+  it('filters by exact mailbox', async () => {
+    const res = await (await SELF.fetch(`https://example.com/api/admin/messages?mailbox=${encodeURIComponent(`b@${env.DOMAIN}`)}`)).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(res.total).toBe(1);
+    expect(res.messages[0].id).toBe('m2');
+  });
+
+  it('sorts by from_addr asc/desc', async () => {
+    const asc = await (await SELF.fetch('https://example.com/api/admin/messages?sortBy=from_addr&order=asc')).json<{ messages: AdminMessageRow[] }>();
+    expect(asc.messages.map((m) => m.id)).toEqual(['m1', 'm2', 'm3']);
+    const desc = await (await SELF.fetch('https://example.com/api/admin/messages?sortBy=from_addr&order=desc')).json<{ messages: AdminMessageRow[] }>();
+    expect(desc.messages.map((m) => m.id)).toEqual(['m3', 'm2', 'm1']);
+  });
+
+  it('defaults to received_at desc and falls back on unknown sortBy', async () => {
+    const plain = await (await SELF.fetch('https://example.com/api/admin/messages')).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(plain.messages.map((m) => m.id)).toEqual(['m3', 'm2', 'm1']);
+
+    const bogus = await (await SELF.fetch('https://example.com/api/admin/messages?sortBy=bogus')).json<{ messages: AdminMessageRow[]; total: number }>();
+    expect(bogus.total).toBe(3);
+    expect(bogus.messages.map((m) => m.id)).toEqual(['m3', 'm2', 'm1']);
+  });
+});
+
+describe('GET /api/admin/messages/:id', () => {
+  beforeEach(async () => {
+    await createMailbox(env.DB, `a@${env.DOMAIN}`, 'h', Date.now() - 1000, Date.now() + 60_000);
+    await insertMessage(env.DB, {
+      id: 'm1', mailbox: `a@${env.DOMAIN}`, fromName: 'Alice', fromAddr: 'alice@x.com',
+      subject: 'Hello', preview: 'preview 1', htmlBody: '<p>hello</p>', textBody: 'hello', attachmentsCount: 2, receivedAt: 1000,
+    });
+  });
+
+  it('returns full message body', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/messages/m1');
+    expect(res.status).toBe(200);
+    const body = await res.json<{ message: AdminMessageRow & { html_body: string | null; text_body: string | null; attachments_count: number } }>();
+    expect(body.message.id).toBe('m1');
+    expect(body.message.html_body).toBe('<p>hello</p>');
+    expect(body.message.text_body).toBe('hello');
+    expect(body.message.attachments_count).toBe(2);
+    expect(body.message.mailbox).toBe(`a@${env.DOMAIN}`);
+  });
+
+  it('returns 404 for an unknown id', async () => {
+    const res = await SELF.fetch('https://example.com/api/admin/messages/nope');
+    expect(res.status).toBe(404);
+    expect((await res.json<{ error: { code: string } }>()).error.code).toBe('NOT_FOUND');
+  });
+});
