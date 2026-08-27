@@ -56,9 +56,9 @@ body.admin #app {
 .admin-nav__item:hover { background: var(--bg); color: var(--text); }
 .admin-nav__item--active { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); }
 
-.admin-main { padding: 20px; min-width: 0; }
+.admin-main { padding: 24px; min-width: 0; }
 
-.admin-grid { display: grid; gap: 16px; }
+.admin-grid { display: grid; gap: 20px; }
 @media (min-width: 1200px) {
   .admin-grid--stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
